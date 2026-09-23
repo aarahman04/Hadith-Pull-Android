@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–11 done and committed. 106 JVM tests green. Next: Step 12.
+## Status: Steps 1–12 done and committed. 113 JVM tests green. Next: Step 13 (final step).
 
 | Step | What | Commit | Status |
 |---|---|---|---|
