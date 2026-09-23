@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–5 done. Step 5 awaiting user "go" before commit. Next after that: Step 6.
+## Status: Steps 1–6 done. Step 6 awaiting user "go" before commit. Next after that: Step 7.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -17,8 +17,9 @@ on `main` after approval. No GitHub remote, never pushed.
 | 2 | Launcher icon — **scripted, not the Studio wizard** (see Deviations) | `9cc453d` | done |
 | 3 | Domain text layer (jsTrim, self-contained, excerpts, paragraphize, plainText/shareText/titleCase, grading) | `daaac49` | done |
 | 4 | API/DTOs/normalisation/draw engine (§1.1, §1.2, §1.3, §1.5, P1–P3, P5) | `a7d7fb0` | done |
-| 5 | Room + DataStore (§1.6, §1.7, G1) | — | done, awaiting "go" |
-| 6–13 | HadithRepository+P6, theme/shell, Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
+| 5 | Room + DataStore (§1.6, §1.7, G1) | `a8e9b4c` | done |
+| 6 | HadithRepository, AppContainer, P6 (G1, G2, §4.1) | — | done, awaiting "go" |
+| 7–13 | Theme/shell, Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -128,12 +129,36 @@ technique nowinandroid's own test suite switched to for the same reason);
 `SettingsRepository` itself is unchanged and takes any `DataStore<Preferences>`,
 so real on-device storage is untouched.
 
+## Step 6 design note
+
+`HadithPullApp` (the `Application`, registered in the manifest as
+`android:name=".HadithPullApp"`) now owns `AppContainer` — created solely so
+`AppContainer` has somewhere to live and a real `Context` to build the Room
+database and DataStore file from. `MainActivity` is untouched (still Step 1's
+placeholder); wiring it to the container and building the real UI shell is
+Step 7's job, not this one.
+
+`HadithRepositoryTest` and `BookmarkRepositoryDbTest` both need a real Room
+database, so both run under Robolectric (added in Step 5) rather than a bare
+JVM `DrawEngine`-only test.
+
+Two gaps the user caught in review, both fixed: the first fallback test only
+ever had one qualifying cached row, so it couldn't tell a correct uniformly
+random pick from an accidentally-deterministic one — added a test that seeds
+3 rows and asserts more than one distinct key appears across 40 draws. And
+`RecentDao` itself (the eviction-past-30 and upsert-on-existing-key behaviour
+G1 requires) had no test at all — added `RecentDaoTest` with `count()`,
+`allKeys()` and `shownAtOf()` query methods on the DAO purely to make that
+observable from a test.
+
 ## Next step for whoever picks this up
 
-Step 6 — HadithRepository, AppContainer, P6 (G1, G2, §4.1).
-`HadithRepository.draw()` should wrap `DrawEngine.draw()`, writing to
-`recent_hadiths` on `Success` and returning a cache-backed fallback on
-`Failure` (P6: the fallback excludes the current key, carries which failure
-caused it, and never writes `recent_hadiths`). Needs `AppContainer` wiring
-the whole stack (HTTP client, DrawEngine, Room database, both repositories)
-manually — no Hilt, per the spec's fixed architecture line.
+Step 7 — Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4). Download the five
+font files (+ OFL.txt) from github.com/google/fonts into assets/fonts and
+res/raw. Build HadithColors tokens, status colours, typography, shapes,
+motion, reduced-motion snap; the backdrop; the top bar with the logo tile
+(brand_logo.png, source now `C:\Users\aarah\Hadith-Pull\favicons\web-app-manifest-192x192.png`
+per G3) and theme toggle; bottom nav with placeholder tab bodies; the four
+back-stack rules; core-splashscreen held until settings load (via
+`AppContainer.settingsRepository`); edge-to-edge with system-bar icons
+following the effective app theme.
