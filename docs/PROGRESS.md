@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–4 done. Step 4 awaiting user "go" before commit. Next after that: Step 5.
+## Status: Steps 1–5 done. Step 5 awaiting user "go" before commit. Next after that: Step 6.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -16,8 +16,9 @@ on `main` after approval. No GitHub remote, never pushed.
 | — | Master logo files copied in (Step 2 input) | `0fb79dc` | done |
 | 2 | Launcher icon — **scripted, not the Studio wizard** (see Deviations) | `9cc453d` | done |
 | 3 | Domain text layer (jsTrim, self-contained, excerpts, paragraphize, plainText/shareText/titleCase, grading) | `daaac49` | done |
-| 4 | API/DTOs/normalisation/draw engine (§1.1, §1.2, §1.3, §1.5, P1–P3, P5) | — | done, awaiting "go" |
-| 5–13 | Room/DataStore, HadithRepository+P6, theme/shell, Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
+| 4 | API/DTOs/normalisation/draw engine (§1.1, §1.2, §1.3, §1.5, P1–P3, P5) | `a7d7fb0` | done |
+| 5 | Room + DataStore (§1.6, §1.7, G1) | — | done, awaiting "go" |
+| 6–13 | HadithRepository+P6, theme/shell, Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -52,6 +53,20 @@ compileSdk 37 (Android 17 / API 37 ECH support, per the 5.5.0 changelog).
 Stepped back to 5.4.0, the newest version without that transitive
 requirement, for `okhttp`, `okhttp-coroutines` and the test-only
 `mockwebserver3`.
+
+Step 5 added Room 2.8.5, KSP 2.3.12 (the Kotlin Symbol Processing compiler
+plugin, needed for Room's annotation processor; matched to Kotlin 2.3.20 by
+its own "target Kotlin 2.3" versioning) and DataStore Preferences 1.2.1 —
+none of these hit the compileSdk 37 wall, so they're at latest stable.
+
+Also test-only, added after the user asked for Room-backed coverage of
+`moveItem`/`renameFolder`: Robolectric 4.17 and `androidx.test:core` 1.7.0,
+so `BookmarkRepositoryDbTest` can build a real in-memory Room database
+(`Room.inMemoryDatabaseBuilder(context, ...)`) from a plain JVM unit test.
+Room's own context-free JVM builder (`Room.inMemoryDatabaseBuilder<T>()` with
+`BundledSQLiteDriver`) doesn't resolve here — this module compiles against
+Room's Android artifact variant, not its JVM/KMP variant — so Robolectric's
+`ApplicationProvider` is the one supplying the `Context` Room still wants.
 
 Also: **AGP 9.0+ removed the standalone `org.jetbrains.kotlin.android` Gradle
 plugin** — Kotlin compilation is now built into AGP. Don't apply that plugin
@@ -100,10 +115,25 @@ every scenario. `HadithHttpClient` itself is tested separately against
 MockWebServer. Both are wired together in `data/HadithHttpClient.kt` +
 `domain/DrawEngine.kt`; `AppContainer` wiring is Step 6.
 
+## Step 5 design note
+
+File-based `DataStore<Preferences>` (`PreferenceDataStoreFactory.create` +
+`TemporaryFolder`) fails its own unit tests on this Windows dev machine: its
+tmp-file-then-rename write path throws `IOException: Unable to rename ...`
+the second time a write targets an already-existing destination file (a
+known cross-platform DataStore limitation, not an app bug — Android's Linux
+rename() allows overwrite, Windows's doesn't). `SettingsRepositoryTest` uses
+a small in-memory `DataStore<Preferences>` test double instead (the same
+technique nowinandroid's own test suite switched to for the same reason);
+`SettingsRepository` itself is unchanged and takes any `DataStore<Preferences>`,
+so real on-device storage is untouched.
+
 ## Next step for whoever picks this up
 
-Step 5 — Room + DataStore (§1.6, §1.7, G1). Implement every row of the §1.6
-BookmarkRepository contract, plus folder-name validation and the Collator
-sort as JVM-tested plain functions, plus SettingsRepository (DataStore
-Preferences) with JVM tests for defaults, round-trips and unknown-value
-fallback. `app/schemas/.../1.json` must exist and be committed.
+Step 6 — HadithRepository, AppContainer, P6 (G1, G2, §4.1).
+`HadithRepository.draw()` should wrap `DrawEngine.draw()`, writing to
+`recent_hadiths` on `Success` and returning a cache-backed fallback on
+`Failure` (P6: the fallback excludes the current key, carries which failure
+caused it, and never writes `recent_hadiths`). Needs `AppContainer` wiring
+the whole stack (HTTP client, DrawEngine, Room database, both repositories)
+manually — no Hilt, per the spec's fixed architecture line.
