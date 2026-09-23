@@ -26,6 +26,7 @@ import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.text.plainText
 import online.hadithpull.app.ui.components.LocalToastState
+import online.hadithpull.app.ui.share.ShareRoute
 
 /** Wires ReaderViewModel + AppContainer's repositories into ReaderScreen. */
 @Composable
@@ -48,6 +49,7 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
     }.collectAsState(initial = false)
 
     var saveSheetHadith by remember { mutableStateOf<Hadith?>(null) }
+    var shareSheetHadith by remember { mutableStateOf<Hadith?>(null) }
 
     ReaderScreen(
         uiState = uiState,
@@ -67,7 +69,7 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
         },
         onCopy = { hadith -> copyToClipboard(context, hadith, toastState) },
         onOpenSave = { hadith -> saveSheetHadith = hadith },
-        onOpenShare = { /* Share sheet: Step 12 */ },
+        onOpenShare = { hadith -> shareSheetHadith = hadith },
         onOpenAttribution = {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://hadithapi.com")))
         },
@@ -81,6 +83,10 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
             onDismiss = { saveSheetHadith = null },
             onManageBookmarks = onNavigateToBookmarks,
         )
+    }
+
+    shareSheetHadith?.let { hadith ->
+        ShareRoute(container = container, hadith = hadith, onDismiss = { shareSheetHadith = null })
     }
 }
 

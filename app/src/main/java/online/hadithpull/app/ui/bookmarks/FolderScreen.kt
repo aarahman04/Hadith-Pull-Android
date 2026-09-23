@@ -56,6 +56,8 @@ import online.hadithpull.app.data.local.BookmarkEntity
 import online.hadithpull.app.data.local.FolderEntity
 import online.hadithpull.app.data.toHadith
 import online.hadithpull.app.di.AppContainer
+import online.hadithpull.app.domain.Hadith
+import online.hadithpull.app.ui.share.ShareRoute
 import online.hadithpull.app.domain.text.bookmarkExcerpt
 import online.hadithpull.app.domain.text.plainText
 import online.hadithpull.app.ui.components.HadithBackTopBar
@@ -97,6 +99,7 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
     var renaming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var expandedIds by remember { mutableStateOf(setOf<Long>()) }
+    var shareSheetHadith by remember { mutableStateOf<Hadith?>(null) }
 
     val currentFolder = folder ?: return
 
@@ -119,6 +122,7 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
                 expandedIds = if (id in expandedIds) expandedIds - id else expandedIds + id
             },
             onCopy = { item -> copyToClipboard(context, item, toastState) },
+            onShare = { item -> shareSheetHadith = item.toHadith() },
             onMove = { item, targetId, targetName ->
                 scope.launch {
                     viewModel.moveItem(item.id, targetId)
@@ -164,6 +168,10 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
             },
         )
     }
+
+    shareSheetHadith?.let { hadith ->
+        ShareRoute(container = container, hadith = hadith, onDismiss = { shareSheetHadith = null })
+    }
 }
 
 @Composable
@@ -175,6 +183,7 @@ private fun FolderDetailBody(
     expandedIds: Set<Long>,
     onToggleExpanded: (Long) -> Unit,
     onCopy: (BookmarkEntity) -> Unit,
+    onShare: (BookmarkEntity) -> Unit,
     onMove: (BookmarkEntity, Long, String) -> Unit,
     onRemove: (BookmarkEntity) -> Unit,
 ) {
@@ -203,6 +212,7 @@ private fun FolderDetailBody(
                         otherFolders = otherFolders,
                         onToggleExpanded = { onToggleExpanded(item.id) },
                         onCopy = { onCopy(item) },
+                        onShare = { onShare(item) },
                         onMove = { targetId, targetName -> onMove(item, targetId, targetName) },
                         onRemove = { onRemove(item) },
                     )
@@ -221,6 +231,7 @@ private fun BookmarkItemCard(
     otherFolders: List<FolderSummary>,
     onToggleExpanded: () -> Unit,
     onCopy: () -> Unit,
+    onShare: () -> Unit,
     onMove: (Long, String) -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -297,6 +308,7 @@ private fun BookmarkItemCard(
                     FooterAction(if (expanded) "Show less" else "Show full", onToggleExpanded)
                 }
                 FooterAction("Copy", onCopy)
+                FooterAction("Share", onShare)
                 Box {
                     if (otherFolders.isNotEmpty()) {
                         FooterAction("Move to…") { moveMenuOpen = true }
