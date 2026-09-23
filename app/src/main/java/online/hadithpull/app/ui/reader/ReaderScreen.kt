@@ -87,6 +87,7 @@ fun ReaderScreen(
     onToggleExpand: () -> Unit,
     onSetArabicScript: (ArabicScript) -> Unit,
     onCycleTextSize: () -> Unit,
+    isSaved: Boolean,
     onCopy: (Hadith) -> Unit,
     onOpenSave: (Hadith) -> Unit,
     onOpenShare: (Hadith) -> Unit,
@@ -143,7 +144,7 @@ fun ReaderScreen(
                 Spacer(Modifier.height(20.dp))
                 PrimaryButton(uiState = uiState, onDraw = onDraw)
                 Spacer(Modifier.height(16.dp))
-                QuietActionsRow(uiState = uiState, onCopy = onCopy, onOpenSave = onOpenSave, onOpenShare = onOpenShare)
+                QuietActionsRow(uiState = uiState, isSaved = isSaved, onCopy = onCopy, onOpenSave = onOpenSave, onOpenShare = onOpenShare)
                 Spacer(Modifier.height(20.dp))
                 AttributionLine(onClick = onOpenAttribution)
                 Spacer(Modifier.height(24.dp))
@@ -575,6 +576,7 @@ private fun PrimaryButton(uiState: ReaderUiState, onDraw: () -> Unit) {
 @Composable
 private fun QuietActionsRow(
     uiState: ReaderUiState,
+    isSaved: Boolean,
     onCopy: (Hadith) -> Unit,
     onOpenSave: (Hadith) -> Unit,
     onOpenShare: (Hadith) -> Unit,
@@ -585,7 +587,7 @@ private fun QuietActionsRow(
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
         QuietAction("Copy", enabled) { hadith?.let(onCopy) }
         Divider14(colors.borderStrong)
-        QuietAction("Save", enabled) { hadith?.let(onOpenSave) }
+        QuietAction(if (isSaved) "Saved" else "Save", enabled, accent = isSaved) { hadith?.let(onOpenSave) }
         Divider14(colors.borderStrong)
         QuietAction("Share", enabled) { hadith?.let(onOpenShare) }
     }
@@ -597,11 +599,16 @@ private fun Divider14(color: Color) {
 }
 
 @Composable
-private fun QuietAction(label: String, enabled: Boolean, onClick: () -> Unit) {
+private fun QuietAction(label: String, enabled: Boolean, accent: Boolean = false, onClick: () -> Unit) {
     val colors = LocalHadithColors.current
+    val color = when {
+        !enabled -> colors.muted.copy(alpha = 0.45f)
+        accent -> colors.accent
+        else -> colors.muted
+    }
     Text(
         text = label,
-        color = if (enabled) colors.muted else colors.muted.copy(alpha = 0.45f),
+        color = color,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),

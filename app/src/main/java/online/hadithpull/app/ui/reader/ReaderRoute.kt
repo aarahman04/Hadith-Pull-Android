@@ -9,12 +9,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.Settings
 import online.hadithpull.app.data.prefs.TextSize
@@ -25,7 +29,7 @@ import online.hadithpull.app.ui.components.LocalToastState
 
 /** Wires ReaderViewModel + AppContainer's repositories into ReaderScreen. */
 @Composable
-fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings) {
+fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings, onNavigateToBookmarks: () -> Unit) {
     val viewModel: ReaderViewModel = viewModel(
         factory = viewModelFactory {
             initializer { ReaderViewModel(container.hadithRepository, createSavedStateHandle()) }
@@ -38,11 +42,19 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings)
     val toastState = LocalToastState.current
     val context = LocalContext.current
 
+    val currentHadith = (uiState as? ReaderUiState.Loaded)?.hadith
+    val isSaved by remember(currentHadith?.key) {
+        currentHadith?.let { container.bookmarkRepository.isSaved(it.key) } ?: flowOf(false)
+    }.collectAsState(initial = false)
+
+    var saveSheetHadith by remember { mutableStateOf<Hadith?>(null) }
+
     ReaderScreen(
         uiState = uiState,
         darkTheme = darkTheme,
         arabicScript = settings.arabicScript,
         textSize = settings.textSize,
+        isSaved = isSaved,
         onDraw = viewModel::draw,
         onToggleExpand = viewModel::toggleExpand,
         onSetArabicScript = { script ->
@@ -54,12 +66,22 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings)
             toastState.show("Text size: ${next.label}")
         },
         onCopy = { hadith -> copyToClipboard(context, hadith, toastState) },
-        onOpenSave = { /* Save sheet: Step 9 */ },
+        onOpenSave = { hadith -> saveSheetHadith = hadith },
         onOpenShare = { /* Share sheet: Step 12 */ },
         onOpenAttribution = {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://hadithapi.com")))
         },
     )
+
+    saveSheetHadith?.let { hadith ->
+        SaveSheet(
+            hadith = hadith,
+            bookmarkRepository = container.bookmarkRepository,
+            toastState = toastState,
+            onDismiss = { saveSheetHadith = null },
+            onManageBookmarks = onNavigateToBookmarks,
+        )
+    }
 }
 
 private val TextSize.label: String

@@ -14,4 +14,7 @@ object HadithIcons {
     @DrawableRes val bookmark = R.drawable.ic_bookmark
     @DrawableRes val openBook = R.drawable.ic_open_book
     @DrawableRes val infoCircle = R.drawable.ic_info_circle
+    @DrawableRes val check = R.drawable.ic_check
+    @DrawableRes val pencil = R.drawable.ic_pencil
+    @DrawableRes val bin = R.drawable.ic_bin
 }

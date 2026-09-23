@@ -16,15 +16,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import online.hadithpull.app.data.prefs.Settings
 import online.hadithpull.app.di.AppContainer
+import online.hadithpull.app.ui.bookmarks.FolderRoute
+import online.hadithpull.app.ui.bookmarks.FoldersRoute
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.HadithTopBar
 import online.hadithpull.app.ui.components.LocalToastState
@@ -38,6 +40,10 @@ sealed interface TabRoute {
     @Serializable data object Folders : TabRoute
     @Serializable data object About : TabRoute
 }
+
+/** Pushed inside the Bookmarks tab's back stack (§2.1). Not a TabRoute: it isn't a tab root. */
+@Serializable
+data class FolderDetailRoute(val id: Long)
 
 private enum class Tab(val label: String, val icon: Int) {
     READER("Read", HadithIcons.openBook),
@@ -60,13 +66,19 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
     val currentDestination = backStackEntry?.destination
 
     val currentTab = when {
-        currentDestination?.hierarchy?.any { it.hasRoute<TabRoute.Reader>() } == true -> Tab.READER
-        currentDestination?.hierarchy?.any { it.hasRoute<TabRoute.Folders>() } == true -> Tab.FOLDERS
-        currentDestination?.hierarchy?.any { it.hasRoute<TabRoute.About>() } == true -> Tab.ABOUT
+        currentDestination?.hasRoute<TabRoute.Reader>() == true -> Tab.READER
+        currentDestination?.hasRoute<TabRoute.Folders>() == true -> Tab.FOLDERS
+        currentDestination?.hasRoute<FolderDetailRoute>() == true -> Tab.FOLDERS
+        currentDestination?.hasRoute<TabRoute.About>() == true -> Tab.ABOUT
         else -> null
     }
+    // Only a tab ROOT jumps straight to Reader on back (rule 3); a pushed screen like
+    // Folder detail pops within its tab instead (rule 2), via the default back behaviour.
+    val isTabRoot = currentDestination?.hasRoute<TabRoute.Reader>() == true ||
+        currentDestination?.hasRoute<TabRoute.Folders>() == true ||
+        currentDestination?.hasRoute<TabRoute.About>() == true
 
-    if (currentTab != null && currentTab != Tab.READER) {
+    if (currentTab != null && currentTab != Tab.READER && isTabRoot) {
         BackHandler {
             navController.navigate(TabRoute.Reader) {
                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -89,7 +101,8 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
     }
 
     Scaffold(
-        topBar = { HadithTopBar(darkTheme = darkTheme, onToggleTheme = onToggleTheme) },
+        // Pushed screens (Folder detail, Licenses) draw their own back-arrow top bar instead.
+        topBar = { if (isTabRoot) HadithTopBar(darkTheme = darkTheme, onToggleTheme = onToggleTheme) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -116,8 +129,30 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
         CompositionLocalProvider(LocalToastState provides toastState) {
             Box(Modifier.padding(contentPadding)) {
                 NavHost(navController = navController, startDestination = TabRoute.Reader) {
-                    composable<TabRoute.Reader> { ReaderRoute(container = container, darkTheme = darkTheme, settings = settings) }
-                    composable<TabRoute.Folders> { PlaceholderTabBody("Bookmarks") }
+                    composable<TabRoute.Reader> {
+                        ReaderRoute(
+                            container = container,
+                            darkTheme = darkTheme,
+                            settings = settings,
+                            onNavigateToBookmarks = { navigateToTab(Tab.FOLDERS, TabRoute.Folders) },
+                        )
+                    }
+                    composable<TabRoute.Folders> {
+                        FoldersRoute(
+                            container = container,
+                            onOpenFolder = { id -> navController.navigate(FolderDetailRoute(id)) },
+                            onGoToReader = { navigateToTab(Tab.READER, TabRoute.Reader) },
+                        )
+                    }
+                    composable<FolderDetailRoute> { entry ->
+                        val route = entry.toRoute<FolderDetailRoute>()
+                        FolderRoute(
+                            container = container,
+                            darkTheme = darkTheme,
+                            folderId = route.id,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
                     composable<TabRoute.About> { PlaceholderTabBody("About") }
                 }
                 ToastHost(

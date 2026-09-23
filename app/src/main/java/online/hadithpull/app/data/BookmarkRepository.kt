@@ -40,6 +40,18 @@ fun sortFolderSummaries(folders: List<FolderSummary>): List<FolderSummary> {
     return folders.sortedWith(compareBy(collator) { it.name })
 }
 
+/** The Hadith snapshot stored on a bookmark row, for Copy/Share parity with the Reader (§2.4). */
+fun BookmarkEntity.toHadith(): Hadith = Hadith(
+    slug = slug,
+    number = number,
+    book = book,
+    chapter = chapter,
+    status = status,
+    english = english,
+    arabic = arabic,
+    narrator = narrator,
+)
+
 private fun bookmarkEntityOf(folderId: Long, hadith: Hadith, savedAt: Long): BookmarkEntity = BookmarkEntity(
     folderId = folderId,
     hadithKey = hadith.key,

@@ -5,11 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -23,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import online.hadithpull.app.R
@@ -86,6 +90,47 @@ fun HadithTopBar(
         )
         Spacer(Modifier.weight(1f))
         ThemeToggleButton(darkTheme = darkTheme, onToggle = onToggleTheme)
+    }
+}
+
+/** Pushed-screen top bar (Folder detail, Licenses): back arrow, title, trailing actions. */
+@Composable
+fun HadithBackTopBar(
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    val colors = LocalHadithColors.current
+    val typography = online.hadithpull.app.ui.theme.LocalHadithTypography.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.bg.copy(alpha = 0.78f))
+            .drawBehind {
+                drawLine(
+                    color = colors.border,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.text)
+        }
+        Text(
+            text = title,
+            style = typography.sheetTitle,
+            modifier = Modifier.weight(1f),
+            color = colors.text,
+            fontSize = 19.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        actions()
     }
 }
 
