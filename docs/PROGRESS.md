@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–8 done. Step 8 awaiting user "go" before commit. Next after that: Step 9.
+## Status: Steps 1–8 done and committed. 80 JVM tests green. Next: Step 9.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -20,7 +20,7 @@ on `main` after approval. No GitHub remote, never pushed.
 | 5 | Room + DataStore (§1.6, §1.7, G1) | `a8e9b4c` | done |
 | 6 | HadithRepository, AppContainer, P6 (G1, G2, §4.1) | `e3c3c6d` | done |
 | 7 | Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4) | `68353f5` | done |
-| 8 | Reader (§2.2, P6 note, Copy) | — | done, awaiting "go" |
+| 8 | Reader (§2.2, P6 note, Copy) | `619b36c` | done |
 | 9–13 | Bookmarks, About, card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
@@ -186,6 +186,18 @@ was first written with `RepeatMode.Restart` (a hard reset each 1.4s cycle,
 i.e. a flash, not a shimmer) — fixed to `RepeatMode.Reverse` so it actually
 pulses back and forth between `border` and `borderStrong` as the spec's
 "shimmer" wording implies.
+
+Two more gaps the user caught in review, before the commit: the decorative
+gold quote mark (Cormorant `"`, 16% alpha, `clamp(72, 12%w, 112)sp`, top
+-8dp/left -10dp, fading to 0 over 400ms on expand) had been entirely
+skipped — added as `QuoteMark()`, layered behind the narration text in a
+`Box`. And neither of the two scroll behaviours was implemented: scroll-to-0
+after any draw but the first in the process (a `hasShownAResult` flag
+remembered across recompositions, reset only by process death — matching
+"in this process" exactly) and scrolling the narration block into view on
+expand (`BringIntoViewRequester`, which is a superset of the spec's
+"only if the top is above the viewport" — it also corrects a block that's
+below the viewport, which is harmless).
 
 ## Next step for whoever picks this up
 
