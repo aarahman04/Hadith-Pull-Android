@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–9 done and committed. 80 JVM tests green. Next: Step 10.
+## Status: Steps 1–10 done and committed. 80 JVM tests green. Next: Step 11.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -23,7 +23,8 @@ on `main` after approval. No GitHub remote, never pushed.
 | 8 | Reader (§2.2, P6 note, Copy) | `619b36c` | done |
 | 9 | Save sheet + Bookmarks tab (§2.3, §2.4, P4) | `3291ac7` | done |
 | — | Fix: Step 8's quiet-actions row shipped with no icons (§2.2) | `5e07e9e` | done |
-| 10–13 | About, card renderer, share, release hardening | — | not started |
+| 10 | About + Licenses (§2.5) | `cd5555e` | done |
+| 11–13 | Card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -203,12 +204,46 @@ below the viewport, which is harmless).
 
 ## Next step for whoever picks this up
 
-Step 10 — About + Licenses (§2.5). Copy the About paragraphs verbatim from
-about.html at the cited lines; wire every link and the mailto intent
-(toast "No email app found" on `ActivityNotFoundException`); the Appearance
-segmented control and the header toggle must read/write the same `theme`
-preference; each licence entry points at its `res/raw` text; footer reads
-`BuildConfig.VERSION_NAME`.
+Step 11 — Card renderer (§3.1, §3.2). `TextMeasure` abstraction; JVM tests
+with a fixed-advance fake for tracked width (code points), `wrap`,
+`fitBlock` (linear descent, including the truncation branch), `ellipsize`,
+the pill-width formula, the ref-size shrink loop, and the §3.1 step 5–8
+layout values (band, available space, Arabic drop when truncated with
+< 2 lines, vertical placement). `CardInput.from` per §3.2. The drawing
+code must follow the §3.1 sequence in order.
+
+## Step 10 design note
+
+About tab (`ui/about/AboutScreen.kt`) and Licenses (`ui/about/LicensesScreen.kt`)
+wired into `AppNav` exactly like Step 9's Folder detail: `LicensesDetailRoute`
+is a route pushed inside the About tab's back stack (not a `TabRoute`), with
+the same `isTabRoot` guard so back pops to the licence list before jumping
+to Reader. Licenses' own list-vs-detail toggle is local composable state plus
+a scoped `BackHandler`, not a second nav destination, since nothing outside
+the screen needs to address a specific licence directly.
+
+`res/raw/apache_2_0.txt` is the one full Apache-2.0 text every non-font
+dependency's licence entry points at (Kotlin, AndroidX Core KTX/Activity
+Compose/Lifecycle/Navigation Compose/Room/DataStore/Core SplashScreen,
+OkHttp, kotlinx.serialization) — the version catalog's actual dependency
+list, since the spec doesn't enumerate them. Font entries reuse the
+Step 7 `res/raw/ofl_*.txt` files and show each one's first (copyright) line
+as the list-row subtitle.
+
+`ic_open_in_new.xml` is hand-drawn (no web equivalent — the "Say salam"
+social links and their open-in-new glyph don't exist on the web, which
+uses Font Awesome `<i>` tags instead) rather than pulled from
+`material-icons-extended`, which isn't a dependency and would have been
+the only reason to add one just for this glyph.
+
+A user review before commit confirmed three things that are easy to lose
+copying spec prose into Compose string literals: the top-of-screen H1
+"About" + lede (`typography.pageTitle`, matching the Reader/Bookmarks hero
+pattern), all three footer lines (not just the version line), and the
+"Show full Hadith" span in paragraph 1 rendered bold via
+`buildAnnotatedString`/`SpanStyle(fontWeight = FontWeight.Bold)` rather
+than as plain text — all three were already correct in the first draft,
+not fixes.
 
 ## Step 9 design note
 
