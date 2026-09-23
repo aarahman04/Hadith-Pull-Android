@@ -20,4 +20,5 @@ object HadithIcons {
     @DrawableRes val bin = R.drawable.ic_bin
     @DrawableRes val copy = R.drawable.ic_copy
     @DrawableRes val upload = R.drawable.ic_upload
+    @DrawableRes val openInNew = R.drawable.ic_open_in_new
 }
