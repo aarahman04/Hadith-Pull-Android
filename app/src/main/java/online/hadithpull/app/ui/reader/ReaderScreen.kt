@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,6 +71,7 @@ import online.hadithpull.app.domain.text.paragraphize
 import online.hadithpull.app.domain.text.hasArabicWorthShowing
 import online.hadithpull.app.domain.text.wordCount
 import online.hadithpull.app.domain.text.PAGE_EXCERPT
+import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.StatusPill
 import online.hadithpull.app.ui.theme.HadithColors
 import online.hadithpull.app.ui.theme.HadithShapes
@@ -585,11 +587,17 @@ private fun QuietActionsRow(
     val hadith = (uiState as? ReaderUiState.Loaded)?.hadith
     val enabled = hadith != null
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        QuietAction("Copy", enabled) { hadith?.let(onCopy) }
+        QuietAction("Copy", HadithIcons.copy, enabled) { hadith?.let(onCopy) }
         Divider14(colors.borderStrong)
-        QuietAction(if (isSaved) "Saved" else "Save", enabled, accent = isSaved) { hadith?.let(onOpenSave) }
+        QuietAction(
+            label = if (isSaved) "Saved" else "Save",
+            iconRes = HadithIcons.bookmark,
+            enabled = enabled,
+            accent = isSaved,
+            filledIconRes = if (isSaved) HadithIcons.bookmarkFilled else null,
+        ) { hadith?.let(onOpenSave) }
         Divider14(colors.borderStrong)
-        QuietAction("Share", enabled) { hadith?.let(onOpenShare) }
+        QuietAction("Share", HadithIcons.upload, enabled) { hadith?.let(onOpenShare) }
     }
 }
 
@@ -598,21 +606,45 @@ private fun Divider14(color: Color) {
     Box(Modifier.width(1.dp).height(14.dp).background(color))
 }
 
+/** §2.2: Save's icon fills accentSoft and both icon and text turn accent when saved. */
 @Composable
-private fun QuietAction(label: String, enabled: Boolean, accent: Boolean = false, onClick: () -> Unit) {
+private fun QuietAction(
+    label: String,
+    iconRes: Int,
+    enabled: Boolean,
+    accent: Boolean = false,
+    filledIconRes: Int? = null,
+    onClick: () -> Unit,
+) {
     val colors = LocalHadithColors.current
     val color = when {
         !enabled -> colors.muted.copy(alpha = 0.45f)
         accent -> colors.accent
         else -> colors.muted
     }
-    Text(
-        text = label,
-        color = color,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-    )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (filledIconRes != null) {
+                Icon(
+                    painter = painterResource(filledIconRes),
+                    contentDescription = null,
+                    tint = colors.accentSoft,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(text = label, color = color, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+    }
 }
 
 @Composable

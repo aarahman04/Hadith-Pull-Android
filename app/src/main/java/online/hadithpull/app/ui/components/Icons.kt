@@ -12,9 +12,12 @@ object HadithIcons {
     @DrawableRes val sun = R.drawable.ic_sun
     @DrawableRes val moon = R.drawable.ic_moon
     @DrawableRes val bookmark = R.drawable.ic_bookmark
+    @DrawableRes val bookmarkFilled = R.drawable.ic_bookmark_filled
     @DrawableRes val openBook = R.drawable.ic_open_book
     @DrawableRes val infoCircle = R.drawable.ic_info_circle
     @DrawableRes val check = R.drawable.ic_check
     @DrawableRes val pencil = R.drawable.ic_pencil
     @DrawableRes val bin = R.drawable.ic_bin
+    @DrawableRes val copy = R.drawable.ic_copy
+    @DrawableRes val upload = R.drawable.ic_upload
 }
