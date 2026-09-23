@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–6 done. Step 6 awaiting user "go" before commit. Next after that: Step 7.
+## Status: Steps 1–7 done. Step 7 awaiting user "go" before commit. Next after that: Step 8.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -18,8 +18,9 @@ on `main` after approval. No GitHub remote, never pushed.
 | 3 | Domain text layer (jsTrim, self-contained, excerpts, paragraphize, plainText/shareText/titleCase, grading) | `daaac49` | done |
 | 4 | API/DTOs/normalisation/draw engine (§1.1, §1.2, §1.3, §1.5, P1–P3, P5) | `a7d7fb0` | done |
 | 5 | Room + DataStore (§1.6, §1.7, G1) | `a8e9b4c` | done |
-| 6 | HadithRepository, AppContainer, P6 (G1, G2, §4.1) | — | done, awaiting "go" |
-| 7–13 | Theme/shell, Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
+| 6 | HadithRepository, AppContainer, P6 (G1, G2, §4.1) | `e3c3c6d` | done |
+| 7 | Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4) | — | done, awaiting "go" |
+| 8–13 | Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -68,6 +69,14 @@ Room's own context-free JVM builder (`Room.inMemoryDatabaseBuilder<T>()` with
 `BundledSQLiteDriver`) doesn't resolve here — this module compiles against
 Room's Android artifact variant, not its JVM/KMP variant — so Robolectric's
 `ApplicationProvider` is the one supplying the `Context` Room still wants.
+
+Step 7 added `androidx.core:core-splashscreen` 1.2.0 (no compileSdk issue) and
+`androidx.navigation:navigation-compose`. Latest stable there is 2.10.1, but it
+pulls `androidx.lifecycle:lifecycle-*-compose-android:2.11.0` transitively,
+which needs compileSdk 37 — same wall as before. Stepped back to
+**navigation-compose 2.9.0** (the latest release before that lifecycle bump),
+which still has the type-safe (`@Serializable` route) Compose Navigation API
+this project uses.
 
 Also: **AGP 9.0+ removed the standalone `org.jetbrains.kotlin.android` Gradle
 plugin** — Kotlin compilation is now built into AGP. Don't apply that plugin
@@ -153,12 +162,63 @@ observable from a test.
 
 ## Next step for whoever picks this up
 
-Step 7 — Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4). Download the five
-font files (+ OFL.txt) from github.com/google/fonts into assets/fonts and
-res/raw. Build HadithColors tokens, status colours, typography, shapes,
-motion, reduced-motion snap; the backdrop; the top bar with the logo tile
-(brand_logo.png, source now `C:\Users\aarah\Hadith-Pull\favicons\web-app-manifest-192x192.png`
-per G3) and theme toggle; bottom nav with placeholder tab bodies; the four
-back-stack rules; core-splashscreen held until settings load (via
-`AppContainer.settingsRepository`); edge-to-edge with system-bar icons
-following the effective app theme.
+Step 8 — Reader (§2.2, P6 note, Copy). `ReaderViewModel` with
+`SavedStateHandle` and `start(initial: Hadith? = null)`; Save and Share
+buttons may open empty placeholders until Steps 9 and 12. Wire it into
+`TabRoute.Reader`'s placeholder body. The §2.2 state table (loading/loaded/
+failure), expand toggle, reference blocks, status pill (`statusPillColors`,
+already in `ui/theme/Colors.kt`) and actions need to match the spec, plus
+`SavedStateHandle` restore and the P6 fallback note (`fallbackNote()`,
+already in `data/HadithRepository.kt`).
+
+## Step 7 design note
+
+**Fonts:** all 5 files pulled from `github.com/google/fonts` `ofl/` at the
+exact paths §2.6 lists, and their byte sizes matched the spec's table exactly
+(amiri_regular.ttf 431 KB, scheherazade_regular.ttf 332 KB,
+noto_naskh_arabic_var.ttf 308 KB, cormorant_garamond_var.ttf 1,196 KB,
+inter_var.ttf 877 KB) — good confirmation the right files landed. OFL.txt
+files copied to `res/raw/ofl_<family>.txt` (family-slug naming wasn't
+specified further; `ofl_scheherazade_new` / `ofl_noto_naskh_arabic` /
+`ofl_cormorant_garamond` are this session's choice).
+
+**Icons:** sun, moon and bookmark are exact ports of the SVG `d` paths from
+`index.html` (verified against source, not memory). The Read and About tabs
+have no web equivalent (the web has no bottom nav) — "open book outline" and
+"info circle" are hand-drawn to match the sun/moon/bookmark stroke style
+(viewBox 24×24, strokeWidth 1.7, round caps), not ported from anywhere. All
+five are Android vector drawables (`res/drawable/ic_*.xml`) rather than
+`ImageVector.Builder` code, since Android's vector `pathData` accepts the
+same arc syntax as SVG `d` verbatim — hand-converting the moon/bookmark arcs
+into Compose's `Path` arc API would have risked a subtly wrong shape for no
+benefit.
+
+**Backdrop blob B's centre** isn't given by the spec (only blob A's centre
+formula and blob B's diameter are stated; §2.6 says B is "placed bottom-left
+symmetrically per style.css:174-189"). Re-derived it by applying the same
+box-edge-plus-or-minus-radius algebra that reproduces the spec's own blob A
+centre formula from `.glow-a`'s CSS (`top:-16vmax; right:-12vmax`), to
+`.glow-b`'s CSS (`bottom:-18vmax; left:-12vmax`): centre =
+`(-0.12·max + 0.40·max, h + 0.18·max - 0.40·max)`. Worth the user's eyes on
+this one specifically since it's the one number in Backdrop.kt I derived
+rather than copied.
+
+**Grain texture** (the 4dp/1dp paper-grain dot grid) is a tiled `BitmapShader`
+built once and cached via `remember`, not tens of thousands of individual
+`drawCircle` calls — same visual result, far cheaper per frame.
+
+**Not yet wired:** Folder detail and Licenses routes don't exist (their
+steps haven't happened), so the §2.1 back-stack rule 1 (closing a sheet/dialog
+first) and rule 2 (popping within a tab) have nothing to exercise yet beyond
+what `NavController`'s defaults already do. Rules 3 and 4 are live and
+testable now (any non-Reader tab root back-navigates to Reader; Reader's
+back exits, unhandled).
+
+**Version resolution note for next time:** `RowScope.weight` needed to be
+used via Compose's implicit default imports, not an explicit
+`import androidx.compose.foundation.layout.weight` — that explicit import
+resolved to an unrelated *internal* `RowColumnParentData.weight` property
+sharing the same simple name in the same package and failed to compile.
+`NavDestination.hasRoute(route: KClass<*>)` also isn't the right call for
+type-safe routes in navigation-compose 2.9.0 — the reified
+`NavDestination.hasRoute<T>()` (no KClass argument) is.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.HadithPull.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0A0F14</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">#F6F2EA</item>
+        <item name="postSplashScreenTheme">@style/Theme.HadithPull</item>
+    </style>
+
+    <style name="Theme.HadithPull" parent="@android:style/Theme.Material.Light.NoActionBar" />
+</resources>

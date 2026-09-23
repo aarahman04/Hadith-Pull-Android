@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- §2.1 splash: held via setKeepOnScreenCondition until settings load; the adaptive-icon
+         foreground as icon, with windowSplashScreenIconBackgroundColor = #F6F2EA in both modes
+         (the dark-green logo is unreadable on #0A0F14). -->
+    <style name="Theme.HadithPull.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F6F2EA</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">#F6F2EA</item>
+        <item name="postSplashScreenTheme">@style/Theme.HadithPull</item>
+    </style>
+
+    <style name="Theme.HadithPull" parent="@android:style/Theme.Material.Light.NoActionBar" />
+</resources>
