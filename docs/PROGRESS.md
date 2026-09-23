@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–7 done. Step 7 awaiting user "go" before commit. Next after that: Step 8.
+## Status: Steps 1–8 done. Step 8 awaiting user "go" before commit. Next after that: Step 9.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -19,8 +19,9 @@ on `main` after approval. No GitHub remote, never pushed.
 | 4 | API/DTOs/normalisation/draw engine (§1.1, §1.2, §1.3, §1.5, P1–P3, P5) | `a7d7fb0` | done |
 | 5 | Room + DataStore (§1.6, §1.7, G1) | `a8e9b4c` | done |
 | 6 | HadithRepository, AppContainer, P6 (G1, G2, §4.1) | `e3c3c6d` | done |
-| 7 | Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4) | — | done, awaiting "go" |
-| 8–13 | Reader, Bookmarks, About, card renderer, share, release hardening | — | not started |
+| 7 | Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4) | `68353f5` | done |
+| 8 | Reader (§2.2, P6 note, Copy) | — | done, awaiting "go" |
+| 9–13 | Bookmarks, About, card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -160,16 +161,40 @@ G1 requires) had no test at all — added `RecentDaoTest` with `count()`,
 `allKeys()` and `shownAtOf()` query methods on the DAO purely to make that
 observable from a test.
 
+## Step 8 design note
+
+`ReaderViewModel` + `ReaderRoute` (the composable that builds the ViewModel
+via `viewModelFactory { initializer { ... createSavedStateHandle() } }` and
+wires `AppContainer`'s repositories in) + `ReaderScreen` (the actual §2.2
+UI, taking plain state/callbacks — no `AppContainer` reference, so it stays
+easy to reason about and to later drop into a preview). `Save`/`Share`
+quiet actions call empty `onOpenSave`/`onOpenShare` lambdas for now (Steps 9
+and 12 wire them to real sheets); the "Saved" pressed state in the quiet
+actions row is deferred to Step 9 too, since it needs `BookmarkRepository`
+wiring that has nowhere to attach until the Save sheet exists.
+
+Added a toast mechanism (`ui/components/Toast.kt`: `ToastState` +
+`ToastHost`, provided via `LocalToastState` from `AppNav`, positioned above
+the bottom nav bar) since §2.2's Copy and text-size actions both need one,
+and `androidx.compose.material:material-icons-core` (for the refresh/
+chevron icons) and `androidx.lifecycle:lifecycle-viewmodel-savedstate` (for
+`createSavedStateHandle()` in the manual `viewModelFactory`) — neither hit
+the compileSdk 37 wall.
+
+One correction caught before it shipped: the loading skeleton's shimmer
+was first written with `RepeatMode.Restart` (a hard reset each 1.4s cycle,
+i.e. a flash, not a shimmer) — fixed to `RepeatMode.Reverse` so it actually
+pulses back and forth between `border` and `borderStrong` as the spec's
+"shimmer" wording implies.
+
 ## Next step for whoever picks this up
 
-Step 8 — Reader (§2.2, P6 note, Copy). `ReaderViewModel` with
-`SavedStateHandle` and `start(initial: Hadith? = null)`; Save and Share
-buttons may open empty placeholders until Steps 9 and 12. Wire it into
-`TabRoute.Reader`'s placeholder body. The §2.2 state table (loading/loaded/
-failure), expand toggle, reference blocks, status pill (`statusPillColors`,
-already in `ui/theme/Colors.kt`) and actions need to match the spec, plus
-`SavedStateHandle` restore and the P6 fallback note (`fallbackNote()`,
-already in `data/HadithRepository.kt`).
+Step 9 — Save sheet + Bookmarks tab (§2.3, §2.4, P4). Every toast string in
+§2.3/§2.4 must appear verbatim at the right branch; create/rename duplicate
+handling per P4 (already implemented in `BookmarkRepository`, Step 5 — this
+step is the UI). Wires the Reader's Save button (currently a no-op) to a
+real Save sheet, and the Reader's Save/Saved state to `BookmarkRepository`'s
+Room `Flow`s. "Manage all bookmarks →" switches tabs.
 
 ## Step 7 design note
 

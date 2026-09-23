@@ -59,7 +59,9 @@ class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize()) {
                         Backdrop(darkTheme = darkTheme, modifier = Modifier.fillMaxSize())
                         AppNav(
+                            container = container,
                             darkTheme = darkTheme,
+                            settings = current,
                             onToggleTheme = {
                                 // §1.7: stores LIGHT if the effective theme is dark, else DARK.
                                 scope.launch {

@@ -1,6 +1,7 @@
 package online.hadithpull.app.ui.nav
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -8,7 +9,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -20,8 +23,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.serialization.Serializable
+import online.hadithpull.app.data.prefs.Settings
+import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.HadithTopBar
+import online.hadithpull.app.ui.components.LocalToastState
+import online.hadithpull.app.ui.components.ToastHost
+import online.hadithpull.app.ui.components.rememberToastState
+import online.hadithpull.app.ui.reader.ReaderRoute
 
 /** §2.1: the three bottom-nav tab roots. Folder detail and Licenses (later steps) push on top of these. */
 sealed interface TabRoute {
@@ -44,8 +53,9 @@ private enum class Tab(val label: String, val icon: Int) {
  * 4) on Reader, back exits — no handler is installed, so the system default applies.
  */
 @Composable
-fun AppNav(darkTheme: Boolean, onToggleTheme: () -> Unit) {
+fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onToggleTheme: () -> Unit) {
     val navController = rememberNavController()
+    val toastState = rememberToastState()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
@@ -103,14 +113,20 @@ fun AppNav(darkTheme: Boolean, onToggleTheme: () -> Unit) {
             }
         },
     ) { contentPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = TabRoute.Reader,
-            modifier = Modifier.padding(contentPadding),
-        ) {
-            composable<TabRoute.Reader> { PlaceholderTabBody("Reader") }
-            composable<TabRoute.Folders> { PlaceholderTabBody("Bookmarks") }
-            composable<TabRoute.About> { PlaceholderTabBody("About") }
+        CompositionLocalProvider(LocalToastState provides toastState) {
+            Box(Modifier.padding(contentPadding)) {
+                NavHost(navController = navController, startDestination = TabRoute.Reader) {
+                    composable<TabRoute.Reader> { ReaderRoute(container = container, darkTheme = darkTheme, settings = settings) }
+                    composable<TabRoute.Folders> { PlaceholderTabBody("Bookmarks") }
+                    composable<TabRoute.About> { PlaceholderTabBody("About") }
+                }
+                ToastHost(
+                    state = toastState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
+                )
+            }
         }
     }
 }
