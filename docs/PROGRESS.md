@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–8 done and committed. 80 JVM tests green. Next: Step 9.
+## Status: Steps 1–9 done and committed. 80 JVM tests green. Next: Step 10.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -21,7 +21,9 @@ on `main` after approval. No GitHub remote, never pushed.
 | 6 | HadithRepository, AppContainer, P6 (G1, G2, §4.1) | `e3c3c6d` | done |
 | 7 | Theme, fonts, shell (§2.1, §2.6, U1, U3, U4, D4) | `68353f5` | done |
 | 8 | Reader (§2.2, P6 note, Copy) | `619b36c` | done |
-| 9–13 | Bookmarks, About, card renderer, share, release hardening | — | not started |
+| 9 | Save sheet + Bookmarks tab (§2.3, §2.4, P4) | `3291ac7` | done |
+| — | Fix: Step 8's quiet-actions row shipped with no icons (§2.2) | `5e07e9e` | done |
+| 10–13 | About, card renderer, share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -201,12 +203,59 @@ below the viewport, which is harmless).
 
 ## Next step for whoever picks this up
 
-Step 9 — Save sheet + Bookmarks tab (§2.3, §2.4, P4). Every toast string in
-§2.3/§2.4 must appear verbatim at the right branch; create/rename duplicate
-handling per P4 (already implemented in `BookmarkRepository`, Step 5 — this
-step is the UI). Wires the Reader's Save button (currently a no-op) to a
-real Save sheet, and the Reader's Save/Saved state to `BookmarkRepository`'s
-Room `Flow`s. "Manage all bookmarks →" switches tabs.
+Step 10 — About + Licenses (§2.5). Copy the About paragraphs verbatim from
+about.html at the cited lines; wire every link and the mailto intent
+(toast "No email app found" on `ActivityNotFoundException`); the Appearance
+segmented control and the header toggle must read/write the same `theme`
+preference; each licence entry points at its `res/raw` text; footer reads
+`BuildConfig.VERSION_NAME`.
+
+## Step 9 design note
+
+Save sheet (`ui/reader/SaveSheet.kt`) and the Bookmarks tab
+(`ui/bookmarks/{BookmarksViewModel,FolderDialogs,FoldersScreen,FolderScreen}.kt`)
+call `BookmarkRepository` directly from the composable (via
+`collectAsState` + a `rememberCoroutineScope` launch), the same pattern
+`ReaderRoute` already used for settings — no dedicated ViewModel for the
+sheet itself, since it's just a reactive view over Room. `BookmarksViewModel`
+exists only because both Bookmarks screens need it (folders/folder/items
+flows plus the five write operations), and each screen gets its own
+instance (scoped to its own nav back-stack entry) since the shared state
+lives in Room, not the ViewModel.
+
+Folder detail (`FolderDetailRoute(id: Long)`) is the app's first screen
+pushed *inside* a tab's back stack, which exposed a real bug in `AppNav`:
+the "back jumps to Reader" override (§2.1 rule 3) was keyed only on
+"is this tab non-Reader," so it would have fired on Folder detail too and
+skipped popping back to the Folders list (rule 2). Fixed by adding an
+`isTabRoot` check so the override only applies to an actual tab root.
+The same fix made the top bar route-aware: `Scaffold`'s `topBar` now only
+renders `HadithTopBar` on a tab root; Folder detail draws its own
+back-arrow bar (`HadithBackTopBar`, new in `TopBar.kt`) as the first thing
+in its own composable, which sidesteps double top bars without needing
+`Scaffold`'s topBar slot to be aware of the pushed screen's content.
+
+`FolderRoute` distinguishes "still loading" from "folder deleted out from
+under me" (§2.4: "if the folder stops existing... pop back to Folders")
+by tracking a `folderLoaded` flag set on the first Room emission, rather
+than trusting `collectAsState(initial = null)` directly — that placeholder
+`null` is indistinguishable from "not found" and would have popped back
+instantly on every entry, before Room's first real emission arrived.
+
+Two things flagged rather than silently decided, per the user's review:
+1. The folder card's Rename/Delete icons are now 40dp (glyph) inside a
+   48dp touch target, matching §2.4's literal wording — increased from an
+   initial 20dp guess.
+2. §2.2's quiet-actions row icons (copy/bookmark/upload-arrow) were
+   missing entirely since Step 8 (`619b36c`) — text-only labels, no icons
+   in any state. That's a Step 8 gap, not new Step 9 scope, so it's fixed
+   in its own commit `5e07e9e`, not folded into `3291ac7`: ported the copy
+   and upload-arrow icons from their exact SVG paths in `index.html`
+   (`ic_copy.xml`, `ic_upload.xml`), reused `ic_bookmark.xml` for Save, and
+   added `ic_bookmark_filled.xml` (solid version of the same path) layered
+   underneath at `accentSoft` so the saved state reads as an
+   accent-outlined, softly-filled bookmark — both icon and text turn
+   `accent` when saved.
 
 ## Step 7 design note
 
