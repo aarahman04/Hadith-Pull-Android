@@ -8,7 +8,7 @@ Working from the verbatim §5.4 handoff prompt in that file, executing its 13
 build steps in order, stopping for the user's "go" after each one, committing
 on `main` after approval. No GitHub remote, never pushed.
 
-## Status: Steps 1–10 done and committed. 80 JVM tests green. Next: Step 11.
+## Status: Steps 1–11 done and committed. 106 JVM tests green. Next: Step 12.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -24,7 +24,8 @@ on `main` after approval. No GitHub remote, never pushed.
 | 9 | Save sheet + Bookmarks tab (§2.3, §2.4, P4) | `3291ac7` | done |
 | — | Fix: Step 8's quiet-actions row shipped with no icons (§2.2) | `5e07e9e` | done |
 | 10 | About + Licenses (§2.5) | `cd5555e` | done |
-| 11–13 | Card renderer, share, release hardening | — | not started |
+| 11 | Card renderer (§3.1, §3.2) | `5e092cf` | done |
+| 12–13 | Share, release hardening | — | not started |
 
 ## Environment notes for the next session
 
@@ -204,13 +205,53 @@ below the viewport, which is harmless).
 
 ## Next step for whoever picks this up
 
-Step 11 — Card renderer (§3.1, §3.2). `TextMeasure` abstraction; JVM tests
-with a fixed-advance fake for tracked width (code points), `wrap`,
-`fitBlock` (linear descent, including the truncation branch), `ellipsize`,
-the pill-width formula, the ref-size shrink loop, and the §3.1 step 5–8
-layout values (band, available space, Arabic drop when truncated with
-< 2 lines, vertical placement). `CardInput.from` per §3.2. The drawing
-code must follow the §3.1 sequence in order.
+Step 12 — Share sheet + share paths (§3.3, §3.4, S1, S2). `FileProvider`,
+cache dirs, file naming, chooser, `MediaStore` save (API 29+), legacy save
+with a runtime permission (API 26–28, manifest `maxSdkVersion=28`), copy
+image, and the three direct share targets (WhatsApp/Facebook/Instagram)
+with their `ActivityNotFoundException` fallbacks. One shared `ShareSheet`
+composable used by both the Reader and each Bookmark item (S1); the card
+theme always opens on Light, and "Include Arabic" reads/writes the same
+`cardArabic` preference on both screens. `CardRenderer.render` from
+Step 11 is what actually produces the preview bitmap.
+
+## Step 11 design note
+
+`CardRenderer.render` was checked line-by-line against `card.js` itself
+(not just the spec's §3.1 summary) — worth flagging since a couple of
+details only live in the JS source: `drawRule`'s stroke width (1.3) is
+shared by *both* the rule under the Arabic block and the reference-row
+rule (the spec states 1.3 for the Arabic one but doesn't repeat it for
+the other), and the status pill colours in card.js's own `STATUS_COLORS`
+table are bit-for-bit identical to `ui/theme/Colors.kt`'s
+`statusPillColors(...).foreground` (checked all 8 values), so the
+renderer reuses that instead of a second copy of the same table.
+
+A user review before commit caught a real drift risk: the measuring
+Paint (`PaintTextMeasure`, used by `wrap`/`fitBlock` to decide line
+breaks) and the drawing Paint (`CardRenderer.render`, which actually
+draws those lines) were built from two separately-typed-out flag sets
+that happened to be identical at the time. If they'd rendered anything
+under the JVM tests, this would've been invisible, since the tests
+exercise a fake `TextMeasure`, not real `Paint` — a later edit to one
+Paint's flags without the other would've made the computed line breaks
+silently stop matching what's drawn. Fixed by extracting one
+`newCardPaint()` function both now build from. The RTL Arabic draw
+(`canvas.drawTextRun(..., x - measure(line), baseline, true, paint)`
+with `Paint.Align.LEFT`) and the narrator's synthetic italic
+(`textSkewX = -0.25f`, reset after) were already correct as specified,
+not fixes.
+
+`CardFonts` (in `TextMeasure.kt`) takes explicit
+`(family, weight, min, max, lineHeight)` with a `CardFonts.forScript()`
+factory for production use, rather than only accepting `ArabicScript`
+directly. This was needed to unit-test `layoutCard`'s "Arabic block
+truncated under 2 lines gets dropped" branch at all: with the real
+§3.1 constants, `available` (band minus narrator/arabic-gap) never gets
+small enough relative to `min * lineHeight` for that branch to trigger
+through any realistic combination of reference/narrator/script inputs —
+the test constructs a synthetic `CardFonts` with a deliberately huge
+`min`/`max` instead.
 
 ## Step 10 design note
 
