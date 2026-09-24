@@ -18,6 +18,15 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Test
+        run: ./gradlew testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew lintDebug
+
+      # Decoded only after tests and lint pass, right before the step that needs it — code run by
+      # testDebugUnitTest/lintDebug (project code, Gradle plugins, dependencies) has no chance to
+      # read the signing key off disk, since it isn't there yet.
       - name: Decode signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -25,12 +34,6 @@ jobs:
           KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
           echo "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
-
-      - name: Test
-        run: ./gradlew testDebugUnitTest
-
-      - name: Lint
-        run: ./gradlew lintDebug
 
       - name: Build signed release bundle
         env:
