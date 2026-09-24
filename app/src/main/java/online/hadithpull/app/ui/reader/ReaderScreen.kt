@@ -162,7 +162,7 @@ fun ReaderScreen(
 private fun Hero(windowWidthDp: Int) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
             Text(

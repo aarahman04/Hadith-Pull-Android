@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -369,19 +370,26 @@ private fun ShareTargetCell(target: ShareTarget, enabled: Boolean, darkTheme: Bo
     val background = if (pressed && tint != null) tint.tintLight else colors.bg
     val foreground = if (pressed && tint != null) (if (darkTheme) tint.fgDark else tint.fgLight) else colors.textSoft
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .background(background, RoundedCornerShape(16.dp))
             .border(1.dp, colors.borderStrong, RoundedCornerShape(16.dp))
-            .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClickLabel = target.label,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(painter = painterResource(target.icon), contentDescription = null, tint = foreground, modifier = Modifier.height(22.dp))
-        Spacer(Modifier.height(6.dp))
-        Text(text = target.label, color = foreground, fontSize = 13.4.sp)
+        Icon(
+            painter = painterResource(target.icon),
+            contentDescription = target.label,
+            tint = foreground,
+            modifier = Modifier.size(28.dp),
+        )
     }
 }
