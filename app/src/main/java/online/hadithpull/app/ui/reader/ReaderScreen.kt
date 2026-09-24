@@ -476,7 +476,6 @@ private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
     Column(
         Modifier
             .fillMaxWidth()
-            .border(0.dp, colors.border)
             .padding(top = 18.dp),
     ) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
