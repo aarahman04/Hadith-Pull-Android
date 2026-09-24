@@ -107,5 +107,5 @@ private fun LicenseText(entry: LicenseEntry) {
     )
 }
 
-private fun readRawText(context: android.content.Context, @RawRes id: Int): String =
+internal fun readRawText(context: android.content.Context, @RawRes id: Int): String =
     context.resources.openRawResource(id).bufferedReader().use { it.readText() }

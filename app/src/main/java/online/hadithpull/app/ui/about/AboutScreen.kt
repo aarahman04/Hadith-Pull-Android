@@ -50,7 +50,7 @@ private const val CONTACT_EMAIL = "aarahman803@gmail.com"
 
 /** §2.5 About tab (About + Contact + Appearance). */
 @Composable
-fun AboutRoute(container: AppContainer, theme: Theme, onOpenLicenses: () -> Unit) {
+fun AboutRoute(container: AppContainer, theme: Theme, onOpenLicenses: () -> Unit, onOpenPrivacy: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val toastState = LocalToastState.current
@@ -59,6 +59,7 @@ fun AboutRoute(container: AppContainer, theme: Theme, onOpenLicenses: () -> Unit
         theme = theme,
         onSetTheme = { newTheme -> scope.launch { container.settingsRepository.setTheme(newTheme) } },
         onOpenLicenses = onOpenLicenses,
+        onOpenPrivacy = onOpenPrivacy,
         onOpenLink = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
         onSendMessage = {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
@@ -79,6 +80,7 @@ private fun AboutScreen(
     theme: Theme,
     onSetTheme: (Theme) -> Unit,
     onOpenLicenses: () -> Unit,
+    onOpenPrivacy: () -> Unit,
     onOpenLink: (String) -> Unit,
     onSendMessage: () -> Unit,
 ) {
@@ -212,6 +214,20 @@ private fun AboutScreen(
             SocialButton("GitHub") { onOpenLink("https://github.com/aarahman04") }
         }
         Spacer(Modifier.height(19.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.surface, HadithShapes.lg)
+                .border(1.dp, colors.border, HadithShapes.lg)
+                .clickable(onClick = onOpenPrivacy)
+                .padding(22.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "Privacy policy", color = colors.text, fontWeight = FontWeight.Medium)
+        }
+        Spacer(Modifier.height(10.dp))
 
         Row(
             modifier = Modifier

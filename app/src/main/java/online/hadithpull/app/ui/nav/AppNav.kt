@@ -27,6 +27,7 @@ import online.hadithpull.app.data.prefs.Settings
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.ui.about.AboutRoute
 import online.hadithpull.app.ui.about.LicensesRoute
+import online.hadithpull.app.ui.about.PrivacyRoute
 import online.hadithpull.app.ui.bookmarks.FolderRoute
 import online.hadithpull.app.ui.bookmarks.FoldersRoute
 import online.hadithpull.app.ui.components.HadithIcons
@@ -50,6 +51,10 @@ data class FolderDetailRoute(val id: Long)
 /** Pushed inside the About tab's back stack (§2.1). Not a TabRoute: it isn't a tab root. */
 @Serializable
 data object LicensesDetailRoute
+
+/** Pushed inside the About tab's back stack (§2.1), D21. Not a TabRoute: it isn't a tab root. */
+@Serializable
+data object PrivacyDetailRoute
 
 private enum class Tab(val label: String, val icon: Int) {
     READER("Read", HadithIcons.openBook),
@@ -77,6 +82,7 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
         currentDestination?.hasRoute<FolderDetailRoute>() == true -> Tab.FOLDERS
         currentDestination?.hasRoute<TabRoute.About>() == true -> Tab.ABOUT
         currentDestination?.hasRoute<LicensesDetailRoute>() == true -> Tab.ABOUT
+        currentDestination?.hasRoute<PrivacyDetailRoute>() == true -> Tab.ABOUT
         else -> null
     }
     // Only a tab ROOT jumps straight to Reader on back (rule 3); a pushed screen like
@@ -165,10 +171,14 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
                             container = container,
                             theme = settings.theme,
                             onOpenLicenses = { navController.navigate(LicensesDetailRoute) },
+                            onOpenPrivacy = { navController.navigate(PrivacyDetailRoute) },
                         )
                     }
                     composable<LicensesDetailRoute> {
                         LicensesRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable<PrivacyDetailRoute> {
+                        PrivacyRoute(onBack = { navController.popBackStack() })
                     }
                 }
                 ToastHost(
