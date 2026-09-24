@@ -1,4 +1,7 @@
 local.properties
+*.jks
+*.keystore
+keystore-base64.txt
 .gradle/
 build/
 .idea/
