@@ -13,12 +13,18 @@ card/release, polish) are specced in that section's own Sonnet handoff
 prompt and pick up from Step 13's commit. Same protocol continues: stop for
 the user's "go" after each step, commit on `main` after approval, never push.
 
-## Status: Steps 1–13 done and committed (83f5e80), 113 JVM tests green.
+## Status: Step 14 done and committed (`f86777d`), 90 JVM tests green.
 Pivoted to the bundled-offline-dataset plan (spec update 2026-09-24). Data
 pipeline output (`Hadith-Pull\data\v1\`, 35,209 hadiths, 10 collections,
-7/7 fixtures) exists and is committed on the web repo's `data/hadith-api`
-branch. Next: Step 14 (data layer — assets, HadithStore, DrawEngine rewrite,
-Hadith model rewrite, Room snapshot column, network-code removal).
+7/7 fixtures) is bundled byte-identical into `app/src/main/assets/hadith/v1/`
+and committed. The matching web changes (§5) are committed on the web repo's
+`data/hadith-api` branch, uncommitted-PR (both apps reviewed as one unit
+before any PR opens). Next: Step 15 (UI — references, grades, Sunnah.com
+link, About, Licenses, Privacy).
+
+See `docs/RELEASING.md` for the manual GitHub Actions release workflow
+(`.github/workflows/release.yml`) that builds a signed `app-release.aab` —
+separate from the numbered spec steps, added on request.
 
 | Step | What | Commit | Status |
 |---|---|---|---|
