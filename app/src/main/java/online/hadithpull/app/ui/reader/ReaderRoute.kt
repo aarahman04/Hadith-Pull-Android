@@ -71,7 +71,10 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
         onOpenSave = { hadith -> saveSheetHadith = hadith },
         onOpenShare = { hadith -> shareSheetHadith = hadith },
         onOpenAttribution = {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://hadithapi.com")))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/fawazahmed0/hadith-api")))
+        },
+        onOpenSunnah = { url ->
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         },
     )
 

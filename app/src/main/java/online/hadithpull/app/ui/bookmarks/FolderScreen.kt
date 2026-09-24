@@ -241,6 +241,7 @@ private fun BookmarkItemCard(
     val short = remember(hadith.english) { bookmarkExcerpt(hadith.english, 320) }
     val canExpand = short != hadith.english || hadith.arabic.isNotEmpty()
     var moveMenuOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Column(
         Modifier
@@ -310,6 +311,11 @@ private fun BookmarkItemCard(
                 }
                 FooterAction("Copy", onCopy)
                 FooterAction("Share", onShare)
+                hadith.sunnahUrl?.let { url ->
+                    FooterAction("View on Sunnah.com") {
+                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+                    }
+                }
                 Box {
                     if (otherFolders.isNotEmpty()) {
                         FooterAction("Move to…") { moveMenuOpen = true }

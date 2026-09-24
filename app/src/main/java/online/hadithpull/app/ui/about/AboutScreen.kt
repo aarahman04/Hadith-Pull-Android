@@ -156,13 +156,16 @@ private fun AboutScreen(
             PanelTitle("Where the texts come from")
             Text(
                 text = buildAnnotatedString {
-                    append("Narrations are fetched live from ")
-                    withStyle(SpanStyle(color = colors.accent, fontWeight = FontWeight.Medium)) { append("HadithAPI") }
-                    append(", which draws on these collections:")
+                    append("Narrations come from the open-source ")
+                    withStyle(SpanStyle(color = colors.accent, fontWeight = FontWeight.Medium)) { append("Hadith API") }
+                    append(
+                        " collection by Fawaz Ahmed, stored inside the app so it works entirely offline. " +
+                            "It covers these collections:",
+                    )
                 },
                 style = typography.body,
                 color = colors.textSoft,
-                modifier = Modifier.clickable { onOpenLink("https://hadithapi.com") },
+                modifier = Modifier.clickable { onOpenLink("https://github.com/fawazahmed0/hadith-api") },
             )
             Spacer(Modifier.height(14.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -170,7 +173,10 @@ private fun AboutScreen(
             }
             Spacer(Modifier.height(19.dp))
             Text(
-                text = "Gradings are reproduced as reported by the source. For anything you intend to act on " +
+                text = "Each narration shows the gradings recorded for it, with the scholar who gave each " +
+                    "one; where scholars differ, Al-Albani's grading is shown first. Sahih al-Bukhari and " +
+                    "Sahih Muslim carry no individual gradings — their contents are accepted as authentic " +
+                    "by scholarly consensus, so they are marked Sahih. For anything you intend to act on " +
                     "or pass along, please verify with the printed collection or a qualified scholar.",
                 style = typography.body,
                 color = colors.textSoft,
@@ -181,6 +187,12 @@ private fun AboutScreen(
                     "“the same as above”, or a second chain of narrators for the hadith before it. " +
                     "Pulled out on their own they point at nothing, so they are skipped and another " +
                     "narration is drawn instead.",
+                style = typography.body,
+                color = colors.textSoft,
+            )
+            Spacer(Modifier.height(19.dp))
+            Text(
+                text = "Each narration links to its page on Sunnah.com, where you can read it in context.",
                 style = typography.body,
                 color = colors.textSoft,
             )
@@ -245,7 +257,7 @@ private fun AboutScreen(
 
         Column(horizontalAlignment = Alignment.Start) {
             Text(text = "Hadith Pull — built for quiet reading.", color = colors.muted, fontSize = 13.4.sp)
-            Text(text = "Texts via HadithAPI", color = colors.muted, fontSize = 13.4.sp)
+            Text(text = "Texts via Hadith API", color = colors.muted, fontSize = 13.4.sp)
             Text(text = "Version ${BuildConfig.VERSION_NAME}", color = colors.muted, fontSize = 13.4.sp)
         }
         Spacer(Modifier.height(24.dp))
@@ -253,8 +265,9 @@ private fun AboutScreen(
 }
 
 private val sourceCollections = listOf(
-    "Sahih Bukhari", "Sahih Muslim", "Jami' at-Tirmidhi", "Sunan Abu Dawood", "Sunan Ibn Majah",
-    "Sunan an-Nasa'i", "Mishkat al-Masabih", "Musnad Ahmad", "Al-Silsila Sahiha",
+    "Sahih al-Bukhari", "Sahih Muslim", "Sunan Abi Dawud", "Jami` at-Tirmidhi", "Sunan an-Nasa'i",
+    "Sunan Ibn Majah", "Muwatta Malik", "The Forty Hadith of al-Nawawi", "The Forty Hadith Qudsi",
+    "The Forty Hadith of Shah Waliullah",
 )
 
 @Composable

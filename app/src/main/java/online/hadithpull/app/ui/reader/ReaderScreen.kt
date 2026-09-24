@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -94,6 +95,7 @@ fun ReaderScreen(
     onOpenSave: (Hadith) -> Unit,
     onOpenShare: (Hadith) -> Unit,
     onOpenAttribution: () -> Unit,
+    onOpenSunnah: (String) -> Unit,
 ) {
     val colors = LocalHadithColors.current
     val windowWidthDp = LocalConfiguration.current.screenWidthDp
@@ -142,6 +144,7 @@ fun ReaderScreen(
                         // §2.2: if the narration block's top is above the viewport, scroll it into view.
                         scope.launch { narrationBringIntoView.bringIntoView() }
                     },
+                    onOpenSunnah = onOpenSunnah,
                 )
                 Spacer(Modifier.height(20.dp))
                 PrimaryButton(uiState = uiState, onDraw = onDraw)
@@ -263,12 +266,13 @@ private fun NarrationBlock(
     darkTheme: Boolean,
     windowWidthDp: Int,
     onToggleExpand: () -> Unit,
+    onOpenSunnah: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier) {
         when (uiState) {
             is ReaderUiState.Loading -> SkeletonBlock()
-            is ReaderUiState.Loaded -> LoadedNarration(uiState, darkTheme, windowWidthDp, onToggleExpand)
+            is ReaderUiState.Loaded -> LoadedNarration(uiState, darkTheme, windowWidthDp, onToggleExpand, onOpenSunnah)
             is ReaderUiState.Failure -> FailureBlock()
         }
     }
@@ -303,7 +307,13 @@ private fun SkeletonBlock() {
 }
 
 @Composable
-private fun LoadedNarration(state: ReaderUiState.Loaded, darkTheme: Boolean, windowWidthDp: Int, onToggleExpand: () -> Unit) {
+private fun LoadedNarration(
+    state: ReaderUiState.Loaded,
+    darkTheme: Boolean,
+    windowWidthDp: Int,
+    onToggleExpand: () -> Unit,
+    onOpenSunnah: (String) -> Unit,
+) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
     val hadith = state.hadith
@@ -312,7 +322,7 @@ private fun LoadedNarration(state: ReaderUiState.Loaded, darkTheme: Boolean, win
 
     Box(Modifier.fillMaxWidth()) {
         QuoteMark(expanded = state.expanded, windowWidthDp = windowWidthDp)
-        LoadedNarrationContent(state, hadith, pageExcerpt, hasArabic, colors, typography, darkTheme, onToggleExpand)
+        LoadedNarrationContent(state, hadith, pageExcerpt, hasArabic, colors, typography, darkTheme, onToggleExpand, onOpenSunnah)
     }
 }
 
@@ -343,6 +353,7 @@ private fun LoadedNarrationContent(
     typography: HadithTypography,
     darkTheme: Boolean,
     onToggleExpand: () -> Unit,
+    onOpenSunnah: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         AnimatedVisibility(visible = state.expanded && hasArabic, enter = expandVertically() + fadeIn(tween(500))) {
@@ -401,6 +412,29 @@ private fun LoadedNarrationContent(
         } else {
             BriefReference(hadith, darkTheme)
         }
+        SunnahLink(sunnahUrl = hadith.sunnahUrl, onOpen = onOpenSunnah)
+    }
+}
+
+/** H11: quiet text link, trailing open-in-new icon (§2.2 quiet style). Hidden when sunnahUrl is null. */
+@Composable
+private fun SunnahLink(sunnahUrl: String?, onOpen: (String) -> Unit) {
+    if (sunnahUrl == null) return
+    val colors = LocalHadithColors.current
+    Row(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clickable { onOpen(sunnahUrl) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = "View on Sunnah.com", color = colors.accentInk, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        Spacer(Modifier.width(6.dp))
+        Icon(
+            painter = painterResource(HadithIcons.openInNew),
+            contentDescription = null,
+            tint = colors.accentInk,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
 
@@ -504,6 +538,36 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
             Column(Modifier.fillMaxWidth()) {
                 Text(text = "CHAPTER", color = colors.muted, fontSize = 11.8.sp, fontWeight = FontWeight.SemiBold)
                 Text(text = hadith.chapter, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        if (hadith.book != null && hadith.inBook != null) {
+            Spacer(Modifier.height(12.dp))
+            ReferenceField("IN-BOOK", "Book ${hadith.book}, Hadith ${hadith.inBook}", Modifier.fillMaxWidth())
+        }
+        val grades = hadith.grades
+        val consensus = hadith.primary?.consensus == true
+        if (consensus || grades.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Column(Modifier.fillMaxWidth()) {
+                Text(text = "GRADES", color = colors.muted, fontSize = 11.8.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(4.dp))
+                if (consensus) {
+                    Text(
+                        text = "Accepted as sahih by scholarly consensus",
+                        color = colors.text,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                } else {
+                    grades.forEach { grade ->
+                        Text(
+                            text = "${grade.grade} — ${grade.by}",
+                            color = colors.text,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
             }
         }
     }
@@ -635,7 +699,7 @@ private fun QuietAction(
 private fun AttributionLine(onClick: () -> Unit) {
     val colors = LocalHadithColors.current
     Text(
-        text = "Texts via HadithAPI",
+        text = "Texts via Hadith API",
         color = colors.muted,
         fontSize = 13.4.sp,
         modifier = Modifier.clickable(onClick = onClick),

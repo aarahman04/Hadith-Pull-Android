@@ -47,7 +47,11 @@ private val libraryLicenses = listOf(
     "kotlinx.serialization",
 ).map { LicenseEntry(it, "Apache License 2.0", R.raw.apache_2_0) }
 
-private val allLicenses = fontLicenses + libraryLicenses
+private val dataLicenses = listOf(
+    LicenseEntry("Hadith API dataset — Fawaz Ahmed", "The Unlicense", R.raw.unlicense),
+)
+
+private val allLicenses = fontLicenses + libraryLicenses + dataLicenses
 
 /** §2.5: a static list; tapping an entry shows its full text from res/raw/. No GMS oss-licenses plugin. */
 @Composable
