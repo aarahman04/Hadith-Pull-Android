@@ -110,7 +110,7 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
         viewModel.renderFailed.collect { toastState.show("Could not compose the card") }
     }
 
-    fun fileName() = cardFileName(hadith.book, hadith.number)
+    fun fileName() = cardFileName(hadith.collectionTitle, hadith.ref)
 
     ShareSheet(
         bitmap = bitmap,

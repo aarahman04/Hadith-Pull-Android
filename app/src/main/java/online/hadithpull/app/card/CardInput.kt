@@ -1,6 +1,7 @@
 package online.hadithpull.app.card
 
 import online.hadithpull.app.data.prefs.ArabicScript
+import online.hadithpull.app.domain.Grading
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.text.CARD_EXCERPT
 import online.hadithpull.app.domain.text.buildExcerpt
@@ -14,6 +15,7 @@ data class CardInput(
     val book: String,
     val number: String,
     val status: String,
+    val statusCat: Grading? = null,
     val site: String = "hadithpull.online",
     val script: ArabicScript,
     val excerpt: Boolean,
@@ -26,9 +28,10 @@ data class CardInput(
                 english = cardExcerpt ?: h.english,
                 arabic = if (includeArabic) h.arabic else "",
                 narrator = h.narrator,
-                book = h.book,
-                number = h.number,
-                status = h.status,
+                book = h.collectionTitle,
+                number = h.ref,
+                status = h.primary?.grade.orEmpty(),
+                statusCat = h.primary?.cat,
                 script = script,
                 excerpt = cardExcerpt != null,
             )

@@ -40,4 +40,9 @@ class CardFileNameTest {
     fun `falls back to hadith dot png when the slugified name would start with a hyphen`() {
         assertEquals("hadith.png", cardFileName("", "1"))
     }
+
+    @Test
+    fun `a Muslim-style letter-suffixed ref like 11a slugifies cleanly`() {
+        assertEquals("sahih-muslim-11a.png", cardFileName("Sahih Muslim", "11a"))
+    }
 }

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "7de9fb4d1f733a1d74f4817668d678ce",
+    "identityHash": "4d20d3d837c7729bc09254faa7ca7489",
     "entities": [
       {
         "tableName": "folders",
@@ -47,7 +47,7 @@
       },
       {
         "tableName": "bookmarks",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `folderId` INTEGER NOT NULL, `hadithKey` TEXT NOT NULL, `slug` TEXT NOT NULL, `number` TEXT NOT NULL, `book` TEXT NOT NULL, `chapter` TEXT NOT NULL, `status` TEXT NOT NULL, `english` TEXT NOT NULL, `arabic` TEXT NOT NULL, `narrator` TEXT NOT NULL, `savedAt` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `folders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `folderId` INTEGER NOT NULL, `hadithKey` TEXT NOT NULL, `hadithJson` TEXT NOT NULL, `savedAt` INTEGER NOT NULL, FOREIGN KEY(`folderId`) REFERENCES `folders`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -68,50 +68,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "slug",
-            "columnName": "slug",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "number",
-            "columnName": "number",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "book",
-            "columnName": "book",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "chapter",
-            "columnName": "chapter",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "status",
-            "columnName": "status",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "english",
-            "columnName": "english",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "arabic",
-            "columnName": "arabic",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "narrator",
-            "columnName": "narrator",
+            "fieldPath": "hadithJson",
+            "columnName": "hadithJson",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -162,83 +120,11 @@
             ]
           }
         ]
-      },
-      {
-        "tableName": "recent_hadiths",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`hadithKey` TEXT NOT NULL, `slug` TEXT NOT NULL, `number` TEXT NOT NULL, `book` TEXT NOT NULL, `chapter` TEXT NOT NULL, `status` TEXT NOT NULL, `english` TEXT NOT NULL, `arabic` TEXT NOT NULL, `narrator` TEXT NOT NULL, `shownAt` INTEGER NOT NULL, PRIMARY KEY(`hadithKey`))",
-        "fields": [
-          {
-            "fieldPath": "hadithKey",
-            "columnName": "hadithKey",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "slug",
-            "columnName": "slug",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "number",
-            "columnName": "number",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "book",
-            "columnName": "book",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "chapter",
-            "columnName": "chapter",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "status",
-            "columnName": "status",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "english",
-            "columnName": "english",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "arabic",
-            "columnName": "arabic",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "narrator",
-            "columnName": "narrator",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "shownAt",
-            "columnName": "shownAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "hadithKey"
-          ]
-        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7de9fb4d1f733a1d74f4817668d678ce')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4d20d3d837c7729bc09254faa7ca7489')"
     ]
   }
 }

@@ -1,7 +1,9 @@
 package online.hadithpull.app.card
 
 import online.hadithpull.app.data.prefs.ArabicScript
+import online.hadithpull.app.domain.Grading
 import online.hadithpull.app.domain.Hadith
+import online.hadithpull.app.domain.PrimaryGrade
 import online.hadithpull.app.domain.text.CARD_EXCERPT
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -11,8 +13,10 @@ import org.junit.Test
 /** §3.2: one CardInput mapping for both the Reader and Bookmarks (S1). */
 class CardInputFromTest {
     private fun hadith(english: String, arabic: String = "", narrator: String = "— Narrated X") = Hadith(
-        slug = "sahih-bukhari", number = "1", book = "Sahih Bukhari", chapter = "",
-        status = "Sahih", english = english, arabic = arabic, narrator = narrator,
+        collection = "bukhari", collectionTitle = "Sahih al-Bukhari", ref = "1", book = 1, inBook = 1,
+        chapter = "", english = english, arabic = arabic, narrator = narrator, grades = emptyList(),
+        primary = PrimaryGrade(grade = "Sahih", by = null, cat = Grading.SAHIH, consensus = true),
+        sunnahUrl = null,
     )
 
     @Test
@@ -46,14 +50,23 @@ class CardInputFromTest {
     }
 
     @Test
-    fun `book, number, status and narrator pass through verbatim`() {
+    fun `collectionTitle, ref, primary grade and narrator pass through verbatim`() {
         val h = hadith(english = "short")
         val input = CardInput.from(h, includeArabic = true, script = ArabicScript.BOLD)
-        assertEquals(h.book, input.book)
-        assertEquals(h.number, input.number)
-        assertEquals(h.status, input.status)
+        assertEquals(h.collectionTitle, input.book)
+        assertEquals(h.ref, input.number)
+        assertEquals(h.primary?.grade, input.status)
+        assertEquals(h.primary?.cat, input.statusCat)
         assertEquals(h.narrator, input.narrator)
         assertEquals(ArabicScript.BOLD, input.script)
         assertEquals("hadithpull.online", input.site)
+    }
+
+    @Test
+    fun `a null primary maps to an empty status and a null statusCat`() {
+        val h = hadith(english = "short").copy(primary = null)
+        val input = CardInput.from(h, includeArabic = true, script = ArabicScript.NASKH)
+        assertEquals("", input.status)
+        assertEquals(null, input.statusCat)
     }
 }

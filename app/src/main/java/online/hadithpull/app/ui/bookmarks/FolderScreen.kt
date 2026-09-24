@@ -237,8 +237,9 @@ private fun BookmarkItemCard(
 ) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
-    val short = remember(item.english) { bookmarkExcerpt(item.english, 320) }
-    val canExpand = short != item.english || item.arabic.isNotEmpty()
+    val hadith = remember(item.hadithJson) { item.toHadith() }
+    val short = remember(hadith.english) { bookmarkExcerpt(hadith.english, 320) }
+    val canExpand = short != hadith.english || hadith.arabic.isNotEmpty()
     var moveMenuOpen by remember { mutableStateOf(false) }
 
     Column(
@@ -254,9 +255,9 @@ private fun BookmarkItemCard(
             verticalAlignment = Alignment.Top,
         ) {
             val refText = buildString {
-                append(item.book)
-                if (item.number.isNotEmpty()) append("  ·  Hadith ${item.number}")
-                if (item.chapter.isNotEmpty()) append("  ·  ${item.chapter}")
+                append(hadith.collectionTitle)
+                if (hadith.ref.isNotEmpty()) append("  ·  Hadith ${hadith.ref}")
+                if (hadith.chapter.isNotEmpty()) append("  ·  ${hadith.chapter}")
             }
             Text(
                 text = refText,
@@ -266,29 +267,29 @@ private fun BookmarkItemCard(
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(8.dp))
-            StatusPill(status = item.status, darkTheme = darkTheme)
+            StatusPill(primary = hadith.primary, darkTheme = darkTheme)
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            text = if (expanded) item.english else short,
+            text = if (expanded) hadith.english else short,
             style = typography.english,
             color = colors.text,
             fontSize = 18.4.sp,
             lineHeight = (18.4 * 1.65).sp,
         )
-        if (expanded && item.arabic.isNotEmpty()) {
+        if (expanded && hadith.arabic.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             Text(
-                text = item.arabic,
+                text = hadith.arabic,
                 style = typography.arabic.copy(textAlign = TextAlign.Right, textDirection = TextDirection.Rtl),
                 fontSize = 22.4.sp,
                 color = colors.text,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (item.narrator.isNotEmpty()) {
+        if (hadith.narrator.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text(text = item.narrator, color = colors.muted, fontStyle = FontStyle.Italic, fontSize = 14.sp)
+            Text(text = hadith.narrator, color = colors.muted, fontStyle = FontStyle.Italic, fontSize = 14.sp)
         }
         Spacer(Modifier.height(14.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))

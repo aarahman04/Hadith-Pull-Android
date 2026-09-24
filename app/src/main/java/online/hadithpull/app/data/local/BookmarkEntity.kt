@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/** H9: stores a `hadithJson` snapshot of the drawn Hadith, instead of one column per field. */
 @Entity(
     tableName = "bookmarks",
     foreignKeys = [
@@ -24,13 +25,6 @@ data class BookmarkEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val folderId: Long,
     val hadithKey: String,
-    val slug: String,
-    val number: String,
-    val book: String,
-    val chapter: String,
-    val status: String,
-    val english: String,
-    val arabic: String,
-    val narrator: String,
+    val hadithJson: String,
     val savedAt: Long,
 )

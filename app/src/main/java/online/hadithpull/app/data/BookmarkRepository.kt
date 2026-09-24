@@ -4,6 +4,8 @@ import java.text.Collator
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import online.hadithpull.app.data.local.BookmarkDao
 import online.hadithpull.app.data.local.BookmarkEntity
 import online.hadithpull.app.data.local.FolderDao
@@ -40,29 +42,13 @@ fun sortFolderSummaries(folders: List<FolderSummary>): List<FolderSummary> {
     return folders.sortedWith(compareBy(collator) { it.name })
 }
 
-/** The Hadith snapshot stored on a bookmark row, for Copy/Share parity with the Reader (§2.4). */
-fun BookmarkEntity.toHadith(): Hadith = Hadith(
-    slug = slug,
-    number = number,
-    book = book,
-    chapter = chapter,
-    status = status,
-    english = english,
-    arabic = arabic,
-    narrator = narrator,
-)
+/** H9: the Hadith snapshot stored on a bookmark row, for Copy/Share parity with the Reader (§2.4). */
+fun BookmarkEntity.toHadith(): Hadith = Json.decodeFromString(hadithJson)
 
 private fun bookmarkEntityOf(folderId: Long, hadith: Hadith, savedAt: Long): BookmarkEntity = BookmarkEntity(
     folderId = folderId,
     hadithKey = hadith.key,
-    slug = hadith.slug,
-    number = hadith.number,
-    book = hadith.book,
-    chapter = hadith.chapter,
-    status = hadith.status,
-    english = hadith.english,
-    arabic = hadith.arabic,
-    narrator = hadith.narrator,
+    hadithJson = Json.encodeToString(hadith),
     savedAt = savedAt,
 )
 

@@ -5,44 +5,28 @@ import org.junit.Test
 
 class HadithTest {
 
-    private fun hadith(number: String) = Hadith(
-        slug = "sahih-bukhari",
-        number = number,
-        book = "Sahih Bukhari",
+    private fun hadith(collection: String = "bukhari", ref: String = "1") = Hadith(
+        collection = collection,
+        collectionTitle = "Sahih al-Bukhari",
+        ref = ref,
+        book = 1,
+        inBook = 1,
         chapter = "",
-        status = "",
         english = "",
         arabic = "",
         narrator = "",
+        grades = emptyList(),
+        primary = null,
+        sunnahUrl = null,
     )
 
     @Test
-    fun `key joins slug and number verbatim, including a compound number`() {
-        assertEquals("sahih-bukhari-1645, 1646", hadith("1645, 1646").key)
+    fun `key joins collection and ref with a colon`() {
+        assertEquals("bukhari:1", hadith("bukhari", "1").key)
     }
 
     @Test
-    fun `grading matches Sahih case-insensitively`() {
-        assertEquals(Grading.SAHIH, grading("Sahih"))
-        assertEquals(Grading.SAHIH, grading("sahih"))
-    }
-
-    @Test
-    fun `grading matches Hasan`() {
-        assertEquals(Grading.HASAN, grading("Hasan"))
-    }
-
-    @Test
-    fun `grading matches the backtick, apostrophe and plain weak forms as Daif`() {
-        assertEquals(Grading.DAIF, grading("Da`eef"))
-        assertEquals(Grading.DAIF, grading("Da'if"))
-        assertEquals(Grading.DAIF, grading("Daif"))
-        assertEquals(Grading.DAIF, grading("weak"))
-    }
-
-    @Test
-    fun `grading is Unknown for empty or unrecognised status`() {
-        assertEquals(Grading.UNKNOWN, grading(""))
-        assertEquals(Grading.UNKNOWN, grading("unknown string"))
+    fun `key handles a Muslim-style letter suffix ref`() {
+        assertEquals("muslim:11a", hadith("muslim", "11a").key)
     }
 }

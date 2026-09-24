@@ -12,7 +12,7 @@ import android.graphics.Shader
 import androidx.compose.ui.graphics.toArgb
 import java.util.Locale
 import kotlin.math.roundToInt
-import online.hadithpull.app.domain.grading
+import online.hadithpull.app.domain.Grading
 import online.hadithpull.app.domain.text.jsTrim
 import online.hadithpull.app.ui.theme.statusPillColors
 
@@ -262,7 +262,7 @@ object CardRenderer {
             val dots = mutableListOf<Boolean>()
             if (statusText.isNotEmpty()) {
                 labels.add(statusText.uppercase(Locale.ROOT))
-                colors.add(statusPillColors(grading(statusText), theme == CardTheme.DARK).foreground.toArgb())
+                colors.add(statusPillColors(input.statusCat ?: Grading.UNKNOWN, theme == CardTheme.DARK).foreground.toArgb())
                 dots.add(true)
             }
             if (input.excerpt || layout.englishBlock.truncated) {

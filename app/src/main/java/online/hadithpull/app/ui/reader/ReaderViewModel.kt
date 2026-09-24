@@ -8,16 +8,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import online.hadithpull.app.data.DrawOutcome
 import online.hadithpull.app.data.HadithRepository
-import online.hadithpull.app.data.fallbackNote
 import online.hadithpull.app.domain.DrawResult
 import online.hadithpull.app.domain.Hadith
 
 sealed interface ReaderUiState {
     data object Loading : ReaderUiState
-    data class Loaded(val hadith: Hadith, val expanded: Boolean, val fallbackNote: String? = null) : ReaderUiState
-    data class Failure(val cause: DrawResult.Failure) : ReaderUiState
+    data class Loaded(val hadith: Hadith, val expanded: Boolean) : ReaderUiState
+    data object Failure : ReaderUiState
 }
 
 private const val KEY_HADITH_JSON = "hadith_json"
@@ -52,10 +50,9 @@ class ReaderViewModel(
         val currentKey = (_uiState.value as? ReaderUiState.Loaded)?.hadith?.key
         _uiState.value = ReaderUiState.Loading
         viewModelScope.launch {
-            when (val outcome = hadithRepository.draw(currentKey)) {
-                is DrawOutcome.Success -> setLoaded(outcome.hadith, expanded = false, note = null)
-                is DrawOutcome.Fallback -> setLoaded(outcome.hadith, expanded = false, note = fallbackNote(outcome.cause))
-                is DrawOutcome.Failure -> _uiState.value = ReaderUiState.Failure(outcome.cause)
+            when (val result = hadithRepository.draw(currentKey)) {
+                is DrawResult.Success -> setLoaded(result.hadith, expanded = false)
+                is DrawResult.Failure -> _uiState.value = ReaderUiState.Failure
             }
         }
     }
@@ -63,12 +60,12 @@ class ReaderViewModel(
     fun toggleExpand() {
         val state = _uiState.value
         if (state is ReaderUiState.Loaded) {
-            setLoaded(state.hadith, !state.expanded, state.fallbackNote)
+            setLoaded(state.hadith, !state.expanded)
         }
     }
 
-    private fun setLoaded(hadith: Hadith, expanded: Boolean, note: String?) {
-        _uiState.value = ReaderUiState.Loaded(hadith, expanded, note)
+    private fun setLoaded(hadith: Hadith, expanded: Boolean) {
+        _uiState.value = ReaderUiState.Loaded(hadith, expanded)
         savedStateHandle[KEY_HADITH_JSON] = Json.encodeToString(hadith)
         savedStateHandle[KEY_EXPANDED] = expanded
     }

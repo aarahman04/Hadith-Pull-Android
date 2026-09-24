@@ -65,7 +65,7 @@ import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.ArabicScript
 import online.hadithpull.app.data.prefs.TextSize
 import online.hadithpull.app.domain.Hadith
-import online.hadithpull.app.domain.DrawResult
+import online.hadithpull.app.domain.DRAW_FAILURE_MESSAGE
 import online.hadithpull.app.domain.text.buildExcerpt
 import online.hadithpull.app.domain.text.paragraphize
 import online.hadithpull.app.domain.text.hasArabicWorthShowing
@@ -269,7 +269,7 @@ private fun NarrationBlock(
         when (uiState) {
             is ReaderUiState.Loading -> SkeletonBlock()
             is ReaderUiState.Loaded -> LoadedNarration(uiState, darkTheme, windowWidthDp, onToggleExpand)
-            is ReaderUiState.Failure -> FailureBlock(uiState.cause)
+            is ReaderUiState.Failure -> FailureBlock()
         }
     }
 }
@@ -345,11 +345,6 @@ private fun LoadedNarrationContent(
     onToggleExpand: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        if (state.fallbackNote != null) {
-            Text(text = state.fallbackNote, style = typography.body, color = colors.muted, fontSize = 13.6.sp)
-            Spacer(Modifier.height(10.dp))
-        }
-
         AnimatedVisibility(visible = state.expanded && hasArabic, enter = expandVertically() + fadeIn(tween(500))) {
             Column {
                 Text(text = "ARABIC", style = typography.sectionLabel, color = colors.muted)
@@ -459,7 +454,7 @@ private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
         ) {
             Column {
                 Text(
-                    text = "${hadith.book}  ·  Hadith ${hadith.number}",
+                    text = "${hadith.collectionTitle}  ·  Hadith ${hadith.ref}",
                     color = colors.text,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
@@ -468,7 +463,7 @@ private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
                     Text(text = hadith.chapter, color = colors.muted, fontSize = 14.sp)
                 }
             }
-            StatusPill(status = hadith.status, darkTheme = darkTheme)
+            StatusPill(primary = hadith.primary, darkTheme = darkTheme)
         }
     }
 }
@@ -490,19 +485,19 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = "REFERENCE", color = colors.accentInk, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
-            StatusPill(status = hadith.status, darkTheme = darkTheme)
+            StatusPill(primary = hadith.primary, darkTheme = darkTheme)
         }
         Spacer(Modifier.height(14.dp))
         if (windowWidthDp >= 400) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                ReferenceField("COLLECTION", hadith.book, Modifier.weight(1f))
+                ReferenceField("COLLECTION", hadith.collectionTitle, Modifier.weight(1f))
                 Spacer(Modifier.width(16.dp))
-                ReferenceField("HADITH NUMBER", hadith.number, Modifier.weight(1f))
+                ReferenceField("HADITH NUMBER", hadith.ref, Modifier.weight(1f))
             }
         } else {
-            ReferenceField("COLLECTION", hadith.book, Modifier.fillMaxWidth())
+            ReferenceField("COLLECTION", hadith.collectionTitle, Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
-            ReferenceField("HADITH NUMBER", hadith.number, Modifier.fillMaxWidth())
+            ReferenceField("HADITH NUMBER", hadith.ref, Modifier.fillMaxWidth())
         }
         if (hadith.chapter.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
@@ -524,20 +519,9 @@ private fun ReferenceField(label: String, value: String, modifier: Modifier = Mo
 }
 
 @Composable
-private fun FailureBlock(cause: DrawResult.Failure) {
+private fun FailureBlock() {
     val colors = LocalHadithColors.current
-    val typography = LocalHadithTypography.current
-    val message = when (cause) {
-        DrawResult.Failure.KeyRejected -> "The Hadith service rejected this request. The API key may need renewing."
-        DrawResult.Failure.Network -> "Could not reach the Hadith service. Check your connection and try again."
-        DrawResult.Failure.Busy -> "The Hadith service is busy. Please try again in a moment."
-        DrawResult.Failure.Exhausted -> "Could not find a narration just now. Please try again."
-    }
-    if (cause is DrawResult.Failure.Exhausted) {
-        Text(text = message, style = typography.placeholder, color = colors.muted, textAlign = TextAlign.Center)
-    } else {
-        Text(text = message, color = colors.error, fontSize = 16.sp, textAlign = TextAlign.Center)
-    }
+    Text(text = DRAW_FAILURE_MESSAGE, color = colors.error, fontSize = 16.sp, textAlign = TextAlign.Center)
 }
 
 @Composable

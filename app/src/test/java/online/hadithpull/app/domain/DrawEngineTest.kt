@@ -1,218 +1,106 @@
 package online.hadithpull.app.domain
 
 import kotlin.random.Random
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
-import mockwebserver3.Dispatcher
-import mockwebserver3.MockResponse
-import mockwebserver3.MockWebServer
-import mockwebserver3.RecordedRequest
-import online.hadithpull.app.data.HadithHttpClient
-import online.hadithpull.app.data.HttpOutcome
+import online.hadithpull.app.data.HadithCollectionInfo
+import online.hadithpull.app.data.HadithIndex
+import online.hadithpull.app.data.HadithRecordDto
+import online.hadithpull.app.data.HadithSource
+import online.hadithpull.app.data.HadithSourceInfo
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.After
-import org.junit.Before
 import org.junit.Test
 
-/** Always picks the first candidate offered, so a draw walks COLLECTIONS in order as slugs are tried. */
-private class FirstAvailableRandom : Random() {
+private class FixedRandom(private val value: Int) : Random() {
     override fun nextBits(bitCount: Int): Int = throw UnsupportedOperationException()
-    override fun nextInt(until: Int): Int = 0
-    override fun nextInt(from: Int, until: Int): Int = from
+    override fun nextInt(until: Int): Int = value
 }
 
-private fun ok(englishBody: String) =
-    MockResponse.Builder().code(200).body("""{"data":[{"hadithEnglish":"$englishBody","hadithNumber":1}]}""").build()
+private fun record(ref: String) = HadithRecordDto(ref = ref, english = "Narration $ref.", narrator = "")
 
-private val notFound = MockResponse.Builder().code(404).body("""{"status":404,"message":"Hadiths not found."}""").build()
-private val busy = MockResponse.Builder().code(429).build()
-private val rejected = MockResponse.Builder().code(401).build()
+/** A fake HadithSource: collection "a" (300 records over shards 0-1) and "b" (10 records, shard 0). */
+private class FakeHadithSource : HadithSource {
+    private val shardA0 = (0 until 250).map { record("a-$it") }
+    private val shardA1 = (250 until 300).map { record("a-$it") }
+    private val shardB0 = (0 until 10).map { record("b-$it") }
 
+    override suspend fun index(): HadithIndex = HadithIndex(
+        source = HadithSourceInfo("fake", "sha"),
+        generatedAt = "now",
+        collections = listOf(
+            HadithCollectionInfo(id = "a", title = "Collection A", count = 300, shards = listOf(0, 1)),
+            HadithCollectionInfo(id = "b", title = "Collection B", count = 10, shards = listOf(0)),
+        ),
+    )
+
+    override suspend fun get(collection: String, shard: Int): List<HadithRecordDto> = when {
+        collection == "a" && shard == 0 -> shardA0
+        collection == "a" && shard == 1 -> shardA1
+        collection == "b" && shard == 0 -> shardB0
+        else -> error("no such shard $collection/$shard")
+    }
+}
+
+/** §4/H6: uniform draw over every eligible hadith, then a redraw once if it repeats the current key. */
 class DrawEngineTest {
-    private val server = MockWebServer()
-
-    @Before
-    fun setUp() {
-        server.start()
-    }
-
-    @After
-    fun tearDown() {
-        try {
-            server.close()
-        } catch (e: IllegalStateException) {
-            // already shut down by the test itself (the "unreachable server" case)
-        }
-    }
-
-    private fun fetchFor(): suspend (String, Int) -> HttpOutcome {
-        val client = HadithHttpClient(apiKey = "test-key", baseUrl = server.url("/").toString())
-        return client::fetch
-    }
-
-    private fun slugOf(request: RecordedRequest): String? = request.url.queryParameter("book")
 
     @Test
-    fun `a silent miss retries a different collection`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                if (slugOf(request) == "sahih-bukhari") notFound else ok("A self contained narration with enough words in it.")
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
+    fun `a draw at the last offset of the first shard lands on that record`() = runBlocking {
+        val engine = DrawEngine(FakeHadithSource(), FixedRandom(249))
+        val result = engine.draw(currentKey = null)
         assertTrue(result is DrawResult.Success)
-        assertEquals("sahih-muslim", (result as DrawResult.Success).hadith.slug)
-        assertEquals(2, server.requestCount)
+        assertEquals("a:a-249", (result as DrawResult.Success).hadith.key)
     }
 
     @Test
-    fun `429 returns Busy with no retry`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse = busy
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
-        assertEquals(DrawResult.Failure.Busy, result)
-        assertEquals(1, server.requestCount)
+    fun `a draw crossing the 250-record shard boundary lands on the second shard's first record`() = runBlocking {
+        val engine = DrawEngine(FakeHadithSource(), FixedRandom(250))
+        val result = engine.draw(currentKey = null)
+        assertTrue(result is DrawResult.Success)
+        assertEquals("a:a-250", (result as DrawResult.Success).hadith.key)
     }
 
     @Test
-    fun `401 returns KeyRejected with no retry`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse = rejected
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
-        assertEquals(DrawResult.Failure.KeyRejected, result)
-        assertEquals(1, server.requestCount)
+    fun `a draw past the first collection's count lands in the second collection`() = runBlocking {
+        val engine = DrawEngine(FakeHadithSource(), FixedRandom(300))
+        val result = engine.draw(currentKey = null)
+        assertTrue(result is DrawResult.Success)
+        assertEquals("b:b-0", (result as DrawResult.Success).hadith.key)
     }
 
     @Test
-    fun `403 returns KeyRejected`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                MockResponse.Builder().code(403).build()
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
-        assertEquals(DrawResult.Failure.KeyRejected, result)
+    fun `a draw landing on the current key redraws once and returns even if it repeats again`() = runBlocking {
+        val engine = DrawEngine(FakeHadithSource(), FixedRandom(249))
+        val result = engine.draw(currentKey = "a:a-249")
+        assertTrue(result is DrawResult.Success)
+        assertEquals("a:a-249", (result as DrawResult.Success).hadith.key)
     }
 
     @Test
-    fun `unreachable server returns Network`() = runBlocking {
-        val fetch = fetchFor()
-        server.close()
-        val result = DrawEngine(fetch, FirstAvailableRandom()).draw()
-        assertEquals(DrawResult.Failure.Network, result)
-    }
-
-    @Test
-    fun `malformed JSON returns Network`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                MockResponse.Builder().code(200).body("not json").build()
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
-        assertEquals(DrawResult.Failure.Network, result)
-    }
-
-    @Test
-    fun `exactly 11 requests then Exhausted`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse = notFound
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
-        assertEquals(DrawResult.Failure.Exhausted, result)
-        assertEquals(11, server.requestCount)
-    }
-
-    @Test
-    fun `the tried set excludes a missed slug and clears once every collection has been tried`() = runBlocking {
-        val requestedSlugs = mutableListOf<String>()
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                requestedSlugs += slugOf(request)!!
-                return notFound
+    fun `a redraw that lands on a different record is used, and only one redraw happens`() = runBlocking {
+        var calls = 0
+        val random = object : Random() {
+            override fun nextBits(bitCount: Int): Int = throw UnsupportedOperationException()
+            override fun nextInt(until: Int): Int {
+                calls++
+                return if (calls == 1) 0 else 5
             }
         }
-        // 9 collections, then the tried set must clear and repeat one on the 10th/11th request.
-        DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
-        val firstNine = requestedSlugs.take(9)
-        assertEquals(9, firstNine.toSet().size)
-        assertTrue(requestedSlugs[9] in firstNine)
-    }
-
-    @Test
-    fun `ProcessHealth demotes a slug after 3 consecutive misses while another stays healthy`() = runBlocking {
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                if (slugOf(request) == "sahih-bukhari") notFound else ok("A self contained narration with enough words in it.")
-        }
-        val health = ProcessHealth()
-        val fetch = fetchFor()
-        repeat(3) {
-            DrawEngine(fetch, FirstAvailableRandom(), health).draw()
-        }
-        assertTrue("sahih-bukhari" in health.demoted)
-    }
-
-    @Test
-    fun `ProcessHealth resets a slug's miss count on success`() = runBlocking {
-        var bukhariCalls = 0
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                if (slugOf(request) != "sahih-bukhari") return ok("A self contained narration with enough words in it.")
-                bukhariCalls++
-                return if (bukhariCalls <= 2) notFound else ok("A self contained narration with enough words too.")
-            }
-        }
-        val health = ProcessHealth()
-        val fetch = fetchFor()
-        repeat(3) { DrawEngine(fetch, FirstAvailableRandom(), health).draw() }
-        assertTrue("sahih-bukhari" !in health.demoted)
-    }
-
-    @Test
-    fun `ProcessHealth never demotes the last healthy slug, even past 3 consecutive misses`() {
-        val health = ProcessHealth()
-        val allButLast = COLLECTIONS.dropLast(1)
-        val lastHealthy = COLLECTIONS.last().slug
-
-        allButLast.forEach { collection -> repeat(3) { health.onMiss(collection.slug) } }
-        assertEquals(allButLast.map { it.slug }.toSet(), health.demoted)
-
-        repeat(5) { health.onMiss(lastHealthy) }
-        assertTrue(lastHealthy !in health.demoted)
-    }
-
-    @Test
-    fun `CancellationException is rethrown, not swallowed as a Failure`() = runBlocking {
-        val cancellingFetch: suspend (String, Int) -> HttpOutcome = { _, _ -> throw CancellationException("cancelled") }
-        var thrown: Throwable? = null
-        try {
-            DrawEngine(cancellingFetch, FirstAvailableRandom()).draw()
-        } catch (e: CancellationException) {
-            thrown = e
-        }
-        assertTrue(thrown is CancellationException)
-    }
-
-    @Test
-    fun `isSelfContained runs on the pre-strip English, not the narrator-stripped English`() = runBlocking {
-        // The raw hadithEnglish here is short enough on its own (under 15 chars) to fail
-        // isSelfContained; if the engine normalised (stripped the narrator) before checking,
-        // this would still be judged on the same short remainder either way, so instead this
-        // narrows on the check running on hadithEnglish directly rather than a derived field.
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                if (slugOf(request) == "sahih-bukhari") {
-                    MockResponse.Builder().code(200)
-                        .body("""{"data":[{"hadithEnglish":"Short.","englishNarrator":"Abu Huraira","hadithNumber":1}]}""")
-                        .build()
-                } else {
-                    ok("A self contained narration with enough words in it.")
-                }
-        }
-        val result = DrawEngine(fetchFor(), FirstAvailableRandom()).draw()
+        val engine = DrawEngine(FakeHadithSource(), random)
+        val result = engine.draw(currentKey = "a:a-0")
         assertTrue(result is DrawResult.Success)
-        assertEquals("sahih-muslim", (result as DrawResult.Success).hadith.slug)
+        assertEquals("a:a-5", (result as DrawResult.Success).hadith.key)
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun `an asset IO error is a single Failure`() = runBlocking {
+        val failingSource = object : HadithSource {
+            override suspend fun index(): HadithIndex = throw java.io.IOException("missing asset")
+            override suspend fun get(collection: String, shard: Int): List<HadithRecordDto> = error("unused")
+        }
+        val engine = DrawEngine(failingSource, FixedRandom(0))
+        val result = engine.draw(currentKey = null)
+        assertEquals(DrawResult.Failure, result)
     }
 }

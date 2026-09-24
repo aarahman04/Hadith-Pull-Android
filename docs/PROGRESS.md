@@ -4,11 +4,21 @@ Spec: `C:\Users\aarah\.claude\plans\pasted-content-id-a360-role-you-shimmying-na
 (read that file in full before touching this project — it is the only source of
 truth for what to build; this file is just a progress log, not a spec).
 
-Working from the verbatim §5.4 handoff prompt in that file, executing its 13
-build steps in order, stopping for the user's "go" after each one, committing
-on `main` after approval. No GitHub remote, never pushed.
+Steps 1–13 below were built from the verbatim §5.4 handoff prompt (v1,
+hadithapi.com live-API based). That plan is now superseded: the spec's
+"Data source: bundled offline dataset" section (LOCKED 2026-09-24) replaces
+the live sunnah.com/hadithapi.com API entirely with a static dataset bundled
+into the app — no network calls anywhere. Steps 14–17 (data layer, UI,
+card/release, polish) are specced in that section's own Sonnet handoff
+prompt and pick up from Step 13's commit. Same protocol continues: stop for
+the user's "go" after each step, commit on `main` after approval, never push.
 
-## Status: Steps 1–12 done and committed. 113 JVM tests green. Next: Step 13 (final step).
+## Status: Steps 1–13 done and committed (83f5e80), 113 JVM tests green.
+Pivoted to the bundled-offline-dataset plan (spec update 2026-09-24). Data
+pipeline output (`Hadith-Pull\data\v1\`, 35,209 hadiths, 10 collections,
+7/7 fixtures) exists and is committed on the web repo's `data/hadith-api`
+branch. Next: Step 14 (data layer — assets, HadithStore, DrawEngine rewrite,
+Hadith model rewrite, Room snapshot column, network-code removal).
 
 | Step | What | Commit | Status |
 |---|---|---|---|
@@ -25,7 +35,12 @@ on `main` after approval. No GitHub remote, never pushed.
 | — | Fix: Step 8's quiet-actions row shipped with no icons (§2.2) | `5e07e9e` | done |
 | 10 | About + Licenses (§2.5) | `cd5555e` | done |
 | 11 | Card renderer (§3.1, §3.2) | `5e092cf` | done |
-| 12–13 | Share, release hardening | — | not started |
+| 12 | Share sheet + share paths (§3.3, §3.4, S1, S2) | `70540e0` | done |
+| 13 | Release hardening / G7 | `83f5e80` | done |
+| 14 | Bundled-dataset data layer (§4: assets, HadithStore, DrawEngine rewrite, Hadith model rewrite, Room snapshot, network removal) | — | not started |
+| 15 | Bundled-dataset UI (§4: references, grades, Sunnah.com link, About, Licenses, Privacy) | — | not started |
+| 16 | Card/share field renames, release/G7 offline check | — | not started |
+| 17 | Polish pass (D22, blocked on an emulator audit + user notes) | — | not started |
 
 ## Environment notes for the next session
 
@@ -205,15 +220,15 @@ below the viewport, which is harmless).
 
 ## Next step for whoever picks this up
 
-Step 12 — Share sheet + share paths (§3.3, §3.4, S1, S2). `FileProvider`,
-cache dirs, file naming, chooser, `MediaStore` save (API 29+), legacy save
-with a runtime permission (API 26–28, manifest `maxSdkVersion=28`), copy
-image, and the three direct share targets (WhatsApp/Facebook/Instagram)
-with their `ActivityNotFoundException` fallbacks. One shared `ShareSheet`
-composable used by both the Reader and each Bookmark item (S1); the card
-theme always opens on Light, and "Include Arabic" reads/writes the same
-`cardArabic` preference on both screens. `CardRenderer.render` from
-Step 11 is what actually produces the preview bitmap.
+Step 14 — bundled-dataset data layer. See the spec's "Data source: bundled
+offline dataset" section, §4, and its own Sonnet handoff prompt at the end
+of the spec file for the exact remove/add list, the new `Hadith`/`Grade`/
+`PrimaryGrade` model, `HadithStore`, the rewritten `DrawEngine` (uniform
+draw over all eligible hadiths, no retry/collection-health logic), the
+Room `hadithJson` snapshot column, and the full field-rename pass
+(slug→collection, book→collectionTitle, number→ref, status→primary?.grade)
+across card/share code. `app/src/main/assets/hadith/v1/` must be copied in
+first (byte-identical from `Hadith-Pull\data\v1\`, excluding `report.txt`).
 
 ## Step 11 design note
 

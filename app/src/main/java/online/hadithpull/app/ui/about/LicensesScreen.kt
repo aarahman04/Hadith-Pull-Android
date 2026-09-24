@@ -44,7 +44,7 @@ private val fontLicenses = listOf(
 private val libraryLicenses = listOf(
     "Kotlin", "AndroidX Core KTX", "AndroidX Activity Compose", "Jetpack Compose", "AndroidX Lifecycle",
     "AndroidX Navigation Compose", "AndroidX Room", "AndroidX DataStore", "AndroidX Core SplashScreen",
-    "OkHttp", "kotlinx.serialization",
+    "kotlinx.serialization",
 ).map { LicenseEntry(it, "Apache License 2.0", R.raw.apache_2_0) }
 
 private val allLicenses = fontLicenses + libraryLicenses

@@ -4,10 +4,9 @@ import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import java.io.File
-import online.hadithpull.app.BuildConfig
 import online.hadithpull.app.data.BookmarkRepository
-import online.hadithpull.app.data.HadithHttpClient
 import online.hadithpull.app.data.HadithRepository
+import online.hadithpull.app.data.HadithStore
 import online.hadithpull.app.data.local.HadithPullDatabase
 import online.hadithpull.app.data.prefs.SettingsRepository
 import online.hadithpull.app.domain.DrawEngine
@@ -16,8 +15,8 @@ import online.hadithpull.app.domain.DrawEngine
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
-    private val httpClient = HadithHttpClient(apiKey = BuildConfig.HADITH_API_KEY)
-    private val drawEngine = DrawEngine(fetch = httpClient::fetch)
+    private val hadithStore = HadithStore(appContext.assets)
+    private val drawEngine = DrawEngine(hadithStore)
 
     val database: HadithPullDatabase = Room.databaseBuilder(
         appContext,
@@ -26,7 +25,7 @@ class AppContainer(context: Context) {
     ).build()
 
     val bookmarkRepository = BookmarkRepository(database)
-    val hadithRepository = HadithRepository(drawEngine, database)
+    val hadithRepository = HadithRepository(drawEngine)
 
     val settingsRepository = SettingsRepository(
         PreferenceDataStoreFactory.create(

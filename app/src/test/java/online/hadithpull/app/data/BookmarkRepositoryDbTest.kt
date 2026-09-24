@@ -5,7 +5,10 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import online.hadithpull.app.data.local.HadithPullDatabase
+import online.hadithpull.app.domain.Grade
+import online.hadithpull.app.domain.Grading
 import online.hadithpull.app.domain.Hadith
+import online.hadithpull.app.domain.PrimaryGrade
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -34,15 +37,19 @@ class BookmarkRepositoryDbTest {
         db.close()
     }
 
-    private fun hadith(number: String = "1") = Hadith(
-        slug = "sahih-bukhari",
-        number = number,
-        book = "Sahih Bukhari",
+    private fun hadith(ref: String = "1") = Hadith(
+        collection = "bukhari",
+        collectionTitle = "Sahih al-Bukhari",
+        ref = ref,
+        book = 1,
+        inBook = 1,
         chapter = "",
-        status = "",
         english = "Text.",
         arabic = "",
         narrator = "",
+        grades = listOf(Grade(by = "Al-Albani", grade = "Sahih")),
+        primary = PrimaryGrade(grade = "Sahih", by = "Al-Albani", cat = Grading.SAHIH, consensus = false),
+        sunnahUrl = "https://sunnah.com/bukhari:1",
     )
 
     @Test
@@ -103,5 +110,16 @@ class BookmarkRepositoryDbTest {
         val result = repository.renameFolder(other.id, "ramadan")
 
         assertTrue(result is RenameFolderResult.Duplicate)
+    }
+
+    @Test
+    fun `H9 the hadithJson snapshot round-trips a saved bookmark exactly`() = runBlocking {
+        val folder = (repository.createFolder("Ramadan") as CreateFolderResult.Created).folder
+        val h = hadith()
+
+        repository.ensureSaved(folder.id, h)
+        val saved = repository.items(folder.id).first().single()
+
+        assertEquals(h, saved.toHadith())
     }
 }

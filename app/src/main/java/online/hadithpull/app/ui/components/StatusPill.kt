@@ -14,14 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import online.hadithpull.app.domain.grading
+import online.hadithpull.app.domain.PrimaryGrade
 import online.hadithpull.app.ui.theme.HadithShapes
 import online.hadithpull.app.ui.theme.statusPillColors
 
-/** §2.2: text = status verbatim, or "Unclassified" if empty. A 6dp dot in the foreground colour before it. */
+/** §4/H8: text = primary.grade verbatim; null means no pill (the "Unclassified" fallback is deleted). */
 @Composable
-fun StatusPill(status: String, darkTheme: Boolean, modifier: Modifier = Modifier) {
-    val colors = statusPillColors(grading(status), darkTheme)
+fun StatusPill(primary: PrimaryGrade?, darkTheme: Boolean, modifier: Modifier = Modifier) {
+    if (primary == null) return
+    val colors = statusPillColors(primary.cat, darkTheme)
     Row(
         modifier = modifier
             .background(colors.background, HadithShapes.pill)
@@ -35,7 +36,7 @@ fun StatusPill(status: String, darkTheme: Boolean, modifier: Modifier = Modifier
                 .background(colors.foreground, CircleShape),
         )
         Text(
-            text = status.ifEmpty { "Unclassified" },
+            text = primary.grade,
             modifier = Modifier.padding(start = 6.dp),
             color = colors.foreground,
             fontWeight = FontWeight.SemiBold,
