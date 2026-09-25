@@ -3,22 +3,23 @@ package online.hadithpull.app.ui.bookmarks
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -34,12 +35,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -49,6 +53,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.FolderSummary
 import online.hadithpull.app.data.RenameFolderResult
@@ -62,12 +67,13 @@ import online.hadithpull.app.share.writeLibraryToCache
 import online.hadithpull.app.ui.share.ShareRoute
 import online.hadithpull.app.domain.text.bookmarkExcerpt
 import online.hadithpull.app.domain.text.plainText
+import online.hadithpull.app.ui.components.ActionTone
 import online.hadithpull.app.ui.components.HadithBackTopBar
+import online.hadithpull.app.ui.components.HadithCard
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.LocalToastState
-import online.hadithpull.app.ui.components.StatusPill
-import online.hadithpull.app.ui.components.ToastState
-import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.components.ReferenceSummary
+import online.hadithpull.app.ui.components.SecondaryAction
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
 
@@ -104,9 +110,10 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
     var shareSheetHadith by remember { mutableStateOf<Hadith?>(null) }
 
     val currentFolder = folder ?: return
+    var menuOpen by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
-        HadithBackTopBar(title = currentFolder.name, onBack = onBack) {
+        HadithBackTopBar(title = "", onBack = onBack) {
             IconButton(onClick = {
                 scope.launch {
                     val html = LibraryExport.buildDocument(container.bookmarkRepository, folderId)
@@ -120,16 +127,20 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
                     context.startActivity(android.content.Intent.createChooser(send, "Share folder"))
                 }
             }) {
-                Icon(painterResource(HadithIcons.upload), contentDescription = "Share folder")
+                Icon(painterResource(HadithIcons.upload), contentDescription = "Share folder", tint = LocalHadithColors.current.textSoft)
             }
-            IconButton(onClick = { renaming = true }) {
-                Icon(painterResource(HadithIcons.pencil), contentDescription = "Rename")
-            }
-            IconButton(onClick = { deleting = true }) {
-                Icon(painterResource(HadithIcons.bin), contentDescription = "Delete")
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Folder options", tint = LocalHadithColors.current.textSoft)
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; renaming = true })
+                    DropdownMenuItem(text = { Text("Delete", color = LocalHadithColors.current.error) }, onClick = { menuOpen = false; deleting = true })
+                }
             }
         }
         FolderDetailBody(
+            folderName = currentFolder.name,
             darkTheme = darkTheme,
             countLabel = if (items.size == 1) "1 Hadith" else "${items.size} Hadiths",
             items = items,
@@ -138,7 +149,7 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
             onToggleExpanded = { id ->
                 expandedIds = if (id in expandedIds) expandedIds - id else expandedIds + id
             },
-            onCopy = { item -> copyToClipboard(context, item, toastState) },
+            onCopy = { item -> copyToClipboard(context, item) },
             onShare = { item -> shareSheetHadith = item.toHadith() },
             onMove = { item, targetId, targetName ->
                 scope.launch {
@@ -193,6 +204,7 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
 
 @Composable
 private fun FolderDetailBody(
+    folderName: String,
     darkTheme: Boolean,
     countLabel: String,
     items: List<BookmarkEntity>,
@@ -205,38 +217,51 @@ private fun FolderDetailBody(
     onRemove: (BookmarkEntity) -> Unit,
 ) {
     val colors = LocalHadithColors.current
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Spacer(Modifier.height(12.dp))
-        Text(text = countLabel, color = colors.muted, fontSize = 14.4.sp)
-        Spacer(Modifier.height(12.dp))
+    val typography = LocalHadithTypography.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Spacer(Modifier.height(8.dp))
+            Text(text = "FOLDER", style = typography.sectionLabel, color = colors.accentInk)
+            Spacer(Modifier.height(4.dp))
+            Text(text = folderName, style = typography.pageTitle, color = colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(4.dp))
+            Text(text = countLabel, color = colors.muted, fontSize = 14.sp)
+            Spacer(Modifier.height(12.dp))
+        }
         if (items.isEmpty()) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(colors.surface, HadithShapes.lg)
-                    .border(1.dp, colors.border, HadithShapes.lg)
-                    .padding(24.dp),
-            ) {
-                Text(text = "Nothing saved here yet.", color = colors.textSoft)
+            item {
+                HadithCard(contentPadding = PaddingValues(24.dp)) {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "Nothing saved here yet.", style = typography.panelTitle, color = colors.text, fontSize = 20.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "Tap Save under any Hadith to add it here.",
+                            color = colors.muted,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                items(items, key = { it.id }) { item ->
-                    BookmarkItemCard(
-                        item = item,
-                        darkTheme = darkTheme,
-                        expanded = item.id in expandedIds,
-                        otherFolders = otherFolders,
-                        onToggleExpanded = { onToggleExpanded(item.id) },
-                        onCopy = { onCopy(item) },
-                        onShare = { onShare(item) },
-                        onMove = { targetId, targetName -> onMove(item, targetId, targetName) },
-                        onRemove = { onRemove(item) },
-                    )
-                }
-                item { Spacer(Modifier.height(8.dp)) }
+            items(items, key = { it.id }) { item ->
+                BookmarkItemCard(
+                    item = item,
+                    darkTheme = darkTheme,
+                    expanded = item.id in expandedIds,
+                    otherFolders = otherFolders,
+                    onToggleExpanded = { onToggleExpanded(item.id) },
+                    onCopy = { onCopy(item) },
+                    onShare = { onShare(item) },
+                    onMove = { targetId, targetName -> onMove(item, targetId, targetName) },
+                    onRemove = { onRemove(item) },
+                )
             }
         }
+        item { Spacer(Modifier.height(32.dp)) }
     }
 }
 
@@ -257,37 +282,27 @@ private fun BookmarkItemCard(
     val hadith = remember(item.hadithJson) { item.toHadith() }
     val short = remember(hadith.english) { bookmarkExcerpt(hadith.english, 320) }
     val canExpand = short != hadith.english || hadith.arabic.isNotEmpty()
+    var overflowOpen by remember { mutableStateOf(false) }
     var moveMenuOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(26.dp))
-            .border(1.dp, colors.border, RoundedCornerShape(26.dp))
-            .padding(18.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
-        ) {
-            val refText = buildString {
-                append(hadith.collectionTitle)
-                if (hadith.ref.isNotEmpty()) append("  ·  Hadith ${hadith.ref}")
-                if (hadith.chapter.isNotEmpty()) append("  ·  ${hadith.chapter}")
-            }
-            Text(
-                text = refText,
-                color = colors.textSoft,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.4.sp,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            StatusPill(primary = hadith.primary, darkTheme = darkTheme)
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2000)
+            copied = false
         }
-        Spacer(Modifier.height(12.dp))
+    }
+    val expandRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, animationSpec = tween(350), label = "expandChevron")
+
+    HadithCard {
+        ReferenceSummary(
+            hadith = hadith,
+            loading = false,
+            darkTheme = darkTheme,
+            onOpenSunnah = { url -> context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) },
+        )
+        Spacer(Modifier.height(8.dp))
         Text(
             text = if (expanded) hadith.english else short,
             style = typography.english,
@@ -309,68 +324,64 @@ private fun BookmarkItemCard(
             Spacer(Modifier.height(10.dp))
             Text(text = hadith.narrator, color = colors.muted, fontStyle = FontStyle.Italic, fontSize = 14.sp)
         }
-        Spacer(Modifier.height(14.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Saved ${dateFormatter.format(Instant.ofEpochMilli(item.savedAt).atZone(ZoneId.systemDefault()).toLocalDate())}",
+            color = colors.muted,
+            fontSize = 12.5.sp,
+        )
         Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Saved ${dateFormatter.format(Instant.ofEpochMilli(item.savedAt).atZone(ZoneId.systemDefault()).toLocalDate())}",
-                color = colors.muted,
-                fontSize = 12.5.sp,
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+        Spacer(Modifier.height(4.dp))
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (canExpand) {
+                SecondaryAction(
+                    label = if (expanded) "Show less" else "Show full",
+                    icon = rememberVectorPainter(Icons.Filled.KeyboardArrowDown),
+                    onClick = onToggleExpanded,
+                    iconRotation = expandRotation,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            SecondaryAction(
+                label = if (copied) "Copied" else "Copy",
+                icon = painterResource(if (copied) HadithIcons.check else HadithIcons.copy),
+                onClick = { onCopy(); copied = true },
+                tone = if (copied) ActionTone.Accent else ActionTone.Neutral,
+                liveLabel = true,
             )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(17.dp)) {
-                if (canExpand) {
-                    FooterAction(if (expanded) "Show less" else "Show full", onToggleExpanded)
+            SecondaryAction(label = "Share", icon = painterResource(HadithIcons.upload), onClick = onShare)
+            Box {
+                IconButton(onClick = { overflowOpen = true }, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "More actions", tint = colors.textSoft, modifier = Modifier.size(20.dp))
                 }
-                FooterAction("Copy", onCopy)
-                FooterAction("Share", onShare)
-                hadith.sunnahUrl?.let { url ->
-                    FooterAction("View on Sunnah.com") {
-                        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-                    }
-                }
-                Box {
+                DropdownMenu(expanded = overflowOpen, onDismissRequest = { overflowOpen = false }) {
                     if (otherFolders.isNotEmpty()) {
-                        FooterAction("Move to…") { moveMenuOpen = true }
-                        DropdownMenu(expanded = moveMenuOpen, onDismissRequest = { moveMenuOpen = false }) {
-                            otherFolders.forEach { target ->
-                                DropdownMenuItem(
-                                    text = { Text(target.name) },
-                                    onClick = {
-                                        moveMenuOpen = false
-                                        onMove(target.id, target.name)
-                                    },
-                                )
-                            }
-                        }
+                        DropdownMenuItem(text = { Text("Move to…") }, onClick = { overflowOpen = false; moveMenuOpen = true })
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Remove from folder", color = colors.error) },
+                        onClick = { overflowOpen = false; onRemove() },
+                    )
+                }
+                DropdownMenu(expanded = moveMenuOpen, onDismissRequest = { moveMenuOpen = false }) {
+                    otherFolders.forEach { target ->
+                        DropdownMenuItem(
+                            text = { Text(target.name) },
+                            onClick = {
+                                moveMenuOpen = false
+                                onMove(target.id, target.name)
+                            },
+                        )
                     }
                 }
-                FooterAction("Remove", onRemove)
             }
         }
     }
 }
 
-@Composable
-private fun FooterAction(label: String, onClick: () -> Unit) {
-    val colors = LocalHadithColors.current
-    Text(
-        text = label,
-        color = colors.muted,
-        fontWeight = FontWeight.Medium,
-        fontSize = 13.sp,
-        modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-private fun copyToClipboard(context: android.content.Context, item: BookmarkEntity, toastState: ToastState) {
+// R3-Q3: Copy confirms inline ("Copied", above) on every API level, so no toast or Build check.
+private fun copyToClipboard(context: android.content.Context, item: BookmarkEntity) {
     val clipboard = context.getSystemService(ClipboardManager::class.java)
     clipboard.setPrimaryClip(ClipData.newPlainText("Hadith", plainText(item.toHadith())))
-    if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.S_V2) {
-        toastState.show("Hadith copied to clipboard")
-    }
 }
