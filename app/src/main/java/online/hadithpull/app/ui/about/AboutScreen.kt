@@ -32,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -44,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import online.hadithpull.app.BuildConfig
-import online.hadithpull.app.data.prefs.Theme
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.LocalToastState
@@ -57,14 +55,12 @@ private const val CONTACT_EMAIL = "aarahman803@gmail.com"
 /** §2.5 About tab (About + Contact + Appearance). §R1.6: centred hero, an editorial prose
  * column instead of boxed panels, and grouped-list surfaces for the interactive sections. */
 @Composable
-fun AboutRoute(container: AppContainer, theme: Theme, onOpenLicenses: () -> Unit, onOpenPrivacy: () -> Unit) {
+fun AboutRoute(container: AppContainer, onOpenLicenses: () -> Unit, onOpenPrivacy: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val toastState = LocalToastState.current
 
     AboutScreen(
-        theme = theme,
-        onSetTheme = { newTheme -> scope.launch { container.settingsRepository.setTheme(newTheme) } },
         onOpenLicenses = onOpenLicenses,
         onOpenPrivacy = onOpenPrivacy,
         onOpenLink = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
@@ -84,8 +80,6 @@ fun AboutRoute(container: AppContainer, theme: Theme, onOpenLicenses: () -> Unit
 
 @Composable
 private fun AboutScreen(
-    theme: Theme,
-    onSetTheme: (Theme) -> Unit,
     onOpenLicenses: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenLink: (String) -> Unit,
@@ -225,13 +219,6 @@ private fun AboutScreen(
         Spacer(Modifier.height(28.dp))
 
         GroupPanel {
-            PanelTitle("Appearance")
-            Spacer(Modifier.height(14.dp))
-            ThemeSegmentedControl(theme, onSetTheme)
-        }
-        Spacer(Modifier.height(19.dp))
-
-        GroupPanel {
             PanelTitle("Say salam")
             Spacer(Modifier.height(10.dp))
             Text(
@@ -347,34 +334,6 @@ private fun SourceChip(label: String) {
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Text(text = label, color = colors.textSoft, fontSize = 13.4.sp)
-    }
-}
-
-@Composable
-private fun ThemeSegmentedControl(current: Theme, onSelect: (Theme) -> Unit) {
-    val colors = LocalHadithColors.current
-    Row(
-        modifier = Modifier
-            .background(colors.bg, HadithShapes.pill)
-            .border(1.dp, colors.border, HadithShapes.pill)
-            .padding(3.dp),
-    ) {
-        Theme.entries.forEach { theme ->
-            val selected = theme == current
-            Box(
-                modifier = Modifier
-                    .clickable { onSelect(theme) }
-                    .background(if (selected) colors.accentSoft else Color.Transparent, HadithShapes.pill)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    text = theme.name.lowercase().replaceFirstChar { it.uppercase() },
-                    color = if (selected) colors.accent else colors.muted,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp,
-                )
-            }
-        }
     }
 }
 

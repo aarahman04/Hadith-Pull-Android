@@ -1,11 +1,18 @@
 package online.hadithpull.app.ui.nav
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -24,7 +33,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import online.hadithpull.app.data.prefs.Settings
+import online.hadithpull.app.data.prefs.Theme
 import online.hadithpull.app.di.AppContainer
+import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.about.AboutRoute
 import online.hadithpull.app.ui.about.LicensesRoute
 import online.hadithpull.app.ui.about.PrivacyRoute
@@ -70,7 +81,13 @@ private enum class Tab(val label: String, val icon: Int) {
  * 4) on Reader, back exits — no handler is installed, so the system default applies.
  */
 @Composable
-fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onToggleTheme: () -> Unit) {
+fun AppNav(
+    container: AppContainer,
+    darkTheme: Boolean,
+    settings: Settings,
+    onToggleTheme: () -> Unit,
+    onSetTheme: (Theme) -> Unit,
+) {
     val navController = rememberNavController()
     val toastState = rememberToastState()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -113,29 +130,28 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
         }
     }
 
+    val colors = LocalHadithColors.current
+
     Scaffold(
         // Pushed screens (Folder detail, Licenses) draw their own back-arrow top bar instead.
-        topBar = { if (isTabRoot) HadithTopBar(darkTheme = darkTheme, onToggleTheme = onToggleTheme) },
+        topBar = {
+            if (isTabRoot) {
+                HadithTopBar(
+                    darkTheme = darkTheme,
+                    theme = settings.theme,
+                    onToggleTheme = onToggleTheme,
+                    onSetTheme = onSetTheme,
+                )
+            }
+        },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = currentTab == Tab.READER,
-                    onClick = { navigateToTab(Tab.READER, TabRoute.Reader) },
-                    icon = { Icon(painterResource(Tab.READER.icon), contentDescription = Tab.READER.label) },
-                    label = { Text(Tab.READER.label) },
-                )
-                NavigationBarItem(
-                    selected = currentTab == Tab.FOLDERS,
-                    onClick = { navigateToTab(Tab.FOLDERS, TabRoute.Folders) },
-                    icon = { Icon(painterResource(Tab.FOLDERS.icon), contentDescription = Tab.FOLDERS.label) },
-                    label = { Text(Tab.FOLDERS.label) },
-                )
-                NavigationBarItem(
-                    selected = currentTab == Tab.ABOUT,
-                    onClick = { navigateToTab(Tab.ABOUT, TabRoute.About) },
-                    icon = { Icon(painterResource(Tab.ABOUT.icon), contentDescription = Tab.ABOUT.label) },
-                    label = { Text(Tab.ABOUT.label) },
-                )
+            Column {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                NavigationBar(containerColor = colors.bg.copy(alpha = 0.94f), tonalElevation = 0.dp) {
+                    TabItem(Tab.READER, selected = currentTab == Tab.READER) { navigateToTab(Tab.READER, TabRoute.Reader) }
+                    TabItem(Tab.FOLDERS, selected = currentTab == Tab.FOLDERS) { navigateToTab(Tab.FOLDERS, TabRoute.Folders) }
+                    TabItem(Tab.ABOUT, selected = currentTab == Tab.ABOUT) { navigateToTab(Tab.ABOUT, TabRoute.About) }
+                }
             }
         },
     ) { contentPadding ->
@@ -169,7 +185,6 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
                     composable<TabRoute.About> {
                         AboutRoute(
                             container = container,
-                            theme = settings.theme,
                             onOpenLicenses = { navController.navigate(LicensesDetailRoute) },
                             onOpenPrivacy = { navController.navigate(PrivacyDetailRoute) },
                         )
@@ -190,4 +205,36 @@ fun AppNav(container: AppContainer, darkTheme: Boolean, settings: Settings, onTo
             }
         }
     }
+}
+
+/** Round 3 §0.7: the one bottom-nav item, themed with the Hadith accent instead of the M3
+ * default lavender/grey. Factored out to remove the triplication in the `NavigationBar` block. */
+@Composable
+private fun RowScope.TabItem(tab: Tab, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalHadithColors.current
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = {
+            Icon(
+                painter = painterResource(tab.icon),
+                contentDescription = tab.label,
+                modifier = Modifier.size(22.dp),
+            )
+        },
+        label = {
+            Text(
+                text = tab.label,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            )
+        },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = colors.accentInk,
+            selectedTextColor = colors.text,
+            indicatorColor = colors.accentSoft,
+            unselectedIconColor = colors.muted.copy(alpha = 0.70f),
+            unselectedTextColor = colors.muted.copy(alpha = 0.70f),
+        ),
+    )
 }

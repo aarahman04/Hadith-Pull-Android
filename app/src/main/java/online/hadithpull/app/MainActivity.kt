@@ -70,6 +70,9 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             },
+                            onSetTheme = { newTheme ->
+                                scope.launch { container.settingsRepository.setTheme(newTheme) }
+                            },
                         )
                     }
                 }
