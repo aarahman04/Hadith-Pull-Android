@@ -1158,3 +1158,50 @@ sub-list) render correctly one after the other rather than overlapping -- Compos
 device-pass item for the user.
 
 **Blockers/questions:** none.
+
+### Step 33 -- About: sections via SectionHeader, chip card, quiet footer
+
+**Done:**
+- Hero replaced with `ScreenHero("HADITH PULL", "About", typography.pageTitle, subline = null)`;
+  the lede stays a plain centred `Text` below it, wording unchanged.
+- All five sections (About the app, Typography, Sources, Contact, Legal) now open with a shared
+  `SectionHeader` instead of the old mix of `ProseSection` (free text), `GroupPanel` + `PanelTitle`
+  (Appearance/Say salam/Legal). All three of those private composables, plus `SectionDivider`, the
+  old private `LinkRow` and `RowDivider`, are deleted in favour of the shared components from Step
+  27.
+- "Typography" (renamed from the old "A note on the Arabic") gets new, shorter copy per the spec --
+  two paragraphs describing the type choices as a design note, replacing the old
+  font-licensing-flavoured text about the Indo-Pak Mushaf orthography's redistribution terms. This
+  is the one new piece of copy in this step, written out verbatim in the spec.
+- The Sources section's collection-chip `FlowRow` moves inside a `HadithCard` with a "COLLECTIONS"
+  label above it, instead of sitting loose directly under the paragraph. `SourceChip`'s fill changes
+  from `colors.surfaceSolid` to `colors.bg` (keeping its 1dp `border`), per the spec's literal chip
+  values.
+- Contact and Legal are now flat `GroupedList`s (Instagram/LinkedIn/GitHub with `ExternalTrailing()`;
+  Privacy policy/Open-source licenses with `ChevronTrailing()`) instead of a `GroupPanel` (a 26dp
+  bordered box) wrapping its own separately bordered 16dp `Column` -- this removes the
+  card-inside-a-card nesting the Round 3 audit flagged (R0's "found" note on About's Say
+  salam/Legal sections).
+- The footer is now three centred lines (app name, version, "No accounts, no ads, no tracking.")
+  instead of the old three lines that duplicated attribution already shown in Sources ("Hadith Pull,
+  built for quiet reading." / "Texts via Hadith API" / version).
+- Content capped at `widthIn(max = 720.dp)` throughout, matching Bookmarks' width discipline; side
+  padding follows the same `16/20dp` width-based rule as the other screens.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 19s, first attempt.
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS (0 error-severity findings)
+- `testDebugUnitTest`: PASS, 105/105
+
+**Unspecified choices:** the "Typography" section's exact wording is new copy this step
+introduces (per the spec's explicit instruction), not an em-dash fix or literal port of existing
+text -- flagged here as the spec asked, though the wording itself was locked in the spec, not
+invented by this step.
+
+**NOT TESTED:** none beyond the usual Compose-layout caveat -- this step is static content and
+layout, with no new interactive behaviour to flag.
+
+**Blockers/questions:** none.
