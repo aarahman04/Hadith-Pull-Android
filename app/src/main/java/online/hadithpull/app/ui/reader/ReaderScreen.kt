@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,7 +29,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,8 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,17 +51,20 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.ArabicScript
 import online.hadithpull.app.data.prefs.TextSize
@@ -74,11 +75,18 @@ import online.hadithpull.app.domain.text.paragraphize
 import online.hadithpull.app.domain.text.hasArabicWorthShowing
 import online.hadithpull.app.domain.text.wordCount
 import online.hadithpull.app.domain.text.PAGE_EXCERPT
+import online.hadithpull.app.ui.components.ActionTone
+import online.hadithpull.app.ui.components.HadithCard
 import online.hadithpull.app.ui.components.HadithIcons
+import online.hadithpull.app.ui.components.HadithPrimaryButton
+import online.hadithpull.app.ui.components.ReferenceSummary
+import online.hadithpull.app.ui.components.ScreenHero
+import online.hadithpull.app.ui.components.SecondaryAction
 import online.hadithpull.app.ui.components.StatusPill
 import online.hadithpull.app.ui.components.shimmerColor
 import online.hadithpull.app.ui.theme.HadithColors
 import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.theme.HadithSpacing
 import online.hadithpull.app.ui.theme.HadithTypography
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
@@ -101,7 +109,6 @@ fun ReaderScreen(
     onCopy: (Hadith) -> Unit,
     onOpenSave: (Hadith) -> Unit,
     onOpenShare: (Hadith) -> Unit,
-    onOpenAttribution: () -> Unit,
     onOpenSunnah: (String) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -144,7 +151,6 @@ fun ReaderScreen(
                         onSetArabicScript = onSetArabicScript,
                         onCycleTextSize = onCycleTextSize,
                         onToggleExpand = onToggleExpandWithScroll,
-                        onOpenAttribution = onOpenAttribution,
                     )
                 }
                 ReaderDock(
@@ -168,7 +174,6 @@ fun ReaderScreen(
                         onSetArabicScript = onSetArabicScript,
                         onCycleTextSize = onCycleTextSize,
                         onToggleExpand = onToggleExpandWithScroll,
-                        onOpenAttribution = onOpenAttribution,
                         trailingDockContent = {
                             ReaderDockContent(
                                 uiState = uiState,
@@ -202,7 +207,6 @@ private fun ReaderContentList(
     onSetArabicScript: (ArabicScript) -> Unit,
     onCycleTextSize: () -> Unit,
     onToggleExpand: () -> Unit,
-    onOpenAttribution: () -> Unit,
     trailingDockContent: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalHadithColors.current
@@ -222,23 +226,28 @@ private fun ReaderContentList(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         item("hero") {
-            Spacer(Modifier.height(24.dp))
-            Hero(windowWidthDp)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(HadithSpacing.xl))
+            ScreenHero(
+                eyebrow = "HADITH OF THE MOMENT",
+                title = "Read. Reflect. Remember.",
+                titleStyle = LocalHadithTypography.current.heroTitle,
+                subline = if (windowWidthDp >= 720) {
+                    "A random narration, with its reference, so you can always verify the source."
+                } else {
+                    null
+                },
+            )
+            Spacer(Modifier.height(16.dp))
         }
         stickyHeader("bar") {
             Box(Modifier.fillMaxWidth().background(barBackground).padding(vertical = 8.dp)) {
-                ReadingBar(windowWidthDp, showScriptToggle, arabicScript, textSize, onSetArabicScript, onCycleTextSize)
+                ReadingBar(showScriptToggle, arabicScript, textSize, onSetArabicScript, onCycleTextSize)
             }
         }
         item("narration") {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(HadithSpacing.xl))
             NarrationBlock(uiState, darkTheme, windowWidthDp, onToggleExpand)
-            Spacer(Modifier.height(20.dp))
-        }
-        item("attrib") {
-            AttributionLine(onClick = onOpenAttribution)
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(HadithSpacing.xxl))
         }
         if (trailingDockContent != null) {
             item("dock") { trailingDockContent() }
@@ -247,108 +256,77 @@ private fun ReaderContentList(
 }
 
 @Composable
-private fun Hero(windowWidthDp: Int) {
-    val colors = LocalHadithColors.current
-    val typography = LocalHadithTypography.current
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
-            Text(
-                text = "HADITH OF THE MOMENT",
-                style = typography.eyebrow,
-                color = colors.muted,
-                modifier = Modifier.padding(horizontal = 10.dp),
-            )
-            Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "Read. Reflect. Remember.",
-            style = typography.heroTitle,
-            color = colors.text,
-            textAlign = TextAlign.Center,
-        )
-        if (windowWidthDp >= 720) {
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "A random narration, with its reference, so you can always verify the source.",
-                style = typography.body,
-                color = colors.textSoft,
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
-@Composable
 private fun ReadingBar(
-    windowWidthDp: Int,
     showScriptToggle: Boolean,
     arabicScript: ArabicScript,
     textSize: TextSize,
     onSetArabicScript: (ArabicScript) -> Unit,
     onCycleTextSize: () -> Unit,
 ) {
-    val arrangement = if (showScriptToggle) {
-        if (windowWidthDp < 720) Arrangement.Center else Arrangement.End
-    } else {
-        Arrangement.Center
-    }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = arrangement) {
-        if (showScriptToggle) {
-            ScriptToggle(arabicScript, onSetArabicScript)
-            Spacer(Modifier.width(10.dp))
-        }
-        TextSizeChip(textSize, onCycleTextSize)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        ReadingModeControl(showScriptToggle, arabicScript, textSize, onSetArabicScript, onCycleTextSize)
     }
 }
 
+/** Round 3 §Step 29.3: the reading-mode control reads as one segmented pill (script + text size),
+ * not two separately styled chips. */
 @Composable
-private fun ScriptToggle(current: ArabicScript, onSelect: (ArabicScript) -> Unit) {
+private fun ReadingModeControl(
+    showScriptToggle: Boolean,
+    arabicScript: ArabicScript,
+    textSize: TextSize,
+    onSetArabicScript: (ArabicScript) -> Unit,
+    onCycleTextSize: () -> Unit,
+) {
     val colors = LocalHadithColors.current
     Row(
         modifier = Modifier
-            .background(colors.surface, HadithShapes.pill)
+            .height(40.dp)
+            .background(colors.surfaceSolid, HadithShapes.pill)
             .border(1.dp, colors.border, HadithShapes.pill)
             .padding(3.dp),
-    ) {
-        ArabicScript.entries.forEach { script ->
-            val selected = script == current
-            Box(
-                modifier = Modifier
-                    .clickable { onSelect(script) }
-                    .background(if (selected) colors.accentSoft else Color.Transparent, HadithShapes.pill)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = script.name.lowercase().replaceFirstChar { it.uppercase() },
-                    color = if (selected) colors.text else colors.muted,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TextSizeChip(textSize: TextSize, onCycle: () -> Unit) {
-    val colors = LocalHadithColors.current
-    val pressed = textSize != TextSize.COMFORTABLE
-    Row(
-        modifier = Modifier
-            .clickable(onClick = onCycle)
-            .background(if (pressed) colors.accentSoft else Color.Transparent, HadithShapes.pill)
-            .border(1.dp, colors.border, HadithShapes.pill)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = "Aa", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.text)
-        Text(
-            text = " " + textSize.name.lowercase().replaceFirstChar { it.uppercase() },
-            fontSize = 13.sp,
-            color = colors.muted,
-        )
+        if (showScriptToggle) {
+            ArabicScript.entries.forEach { script ->
+                val selected = script == arabicScript
+                Box(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .clip(HadithShapes.pill)
+                        .background(if (selected) colors.accentSoft else Color.Transparent)
+                        .clickable { onSetArabicScript(script) }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = script.name.lowercase().replaceFirstChar { it.uppercase() },
+                        color = if (selected) colors.accentInk else colors.muted,
+                        fontSize = 14.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    )
+                }
+            }
+            Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(20.dp).background(colors.borderStrong))
+        }
+
+        val typography = LocalHadithTypography.current
+        val label = textSize.name.lowercase().replaceFirstChar { it.uppercase() }
+        Row(
+            modifier = Modifier
+                .height(34.dp)
+                .clip(HadithShapes.pill)
+                .background(if (textSize != TextSize.COMFORTABLE) colors.accentSoft else Color.Transparent)
+                .clickable(onClickLabel = "Change text size", onClick = onCycleTextSize)
+                .padding(horizontal = 12.dp)
+                .semantics { contentDescription = "Text size: $label" },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "Aa", fontFamily = typography.heroTitle.fontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = colors.text)
+            if (!showScriptToggle) {
+                Text(text = " $label", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = colors.muted)
+            }
+        }
     }
 }
 
@@ -493,32 +471,6 @@ private fun LoadedNarrationContent(
     }
 }
 
-/** H11: quiet text link, trailing open-in-new icon (§2.2 quiet style). With
- * `keepSpaceWhenHidden`, a null `sunnahUrl` renders the same row at alpha 0 and non-clickable
- * instead of collapsing, so the ReaderDock's row never changes height (R1.4). */
-@Composable
-private fun SunnahLink(sunnahUrl: String?, onOpen: (String) -> Unit, keepSpaceWhenHidden: Boolean = false) {
-    if (sunnahUrl == null && !keepSpaceWhenHidden) return
-    val colors = LocalHadithColors.current
-    val visible = sunnahUrl != null
-    Row(
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .alpha(if (visible) 1f else 0f)
-            .clickable(enabled = visible) { sunnahUrl?.let(onOpen) },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = "View on Sunnah.com", color = colors.accentInk, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-        Spacer(Modifier.width(6.dp))
-        Icon(
-            painter = painterResource(HadithIcons.openInNew),
-            contentDescription = null,
-            tint = colors.accentInk,
-            modifier = Modifier.size(14.dp),
-        )
-    }
-}
-
 @Composable
 private fun ExpandToggle(expanded: Boolean, hasExcerpt: Boolean, hasArabic: Boolean, wordCount: Int, onToggle: () -> Unit) {
     val colors = LocalHadithColors.current
@@ -559,16 +511,16 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(colors.refBg, HadithShapes.md)
+            .background(colors.surfaceSolid, HadithShapes.md)
             .border(1.dp, colors.border, HadithShapes.md)
-            .padding(vertical = 18.dp, horizontal = 20.dp),
+            .padding(16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "REFERENCE", color = colors.accentInk, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+            Text(text = "REFERENCE", style = typography.sectionLabel, color = colors.accentInk)
             StatusPill(primary = hadith.primary, darkTheme = darkTheme)
         }
         Spacer(Modifier.height(14.dp))
@@ -668,70 +620,23 @@ private fun ReaderDockContent(
     onOpenShare: (Hadith) -> Unit,
     onOpenSunnah: (String) -> Unit,
 ) {
-    val colors = LocalHadithColors.current
-    val typography = LocalHadithTypography.current
     val loaded = uiState as? ReaderUiState.Loaded
     val hadith = loaded?.hadith
     val sidePadding = if (LocalConfiguration.current.screenWidthDp < 720) 16.dp else 20.dp
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = sidePadding).padding(top = 14.dp, bottom = 16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
-        ) {
-            when {
-                hadith != null -> Text(
-                    text = "${hadith.collectionTitle}  ·  Hadith ${hadith.ref}",
-                    style = typography.contentMeta,
-                    color = colors.text,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                uiState is ReaderUiState.Loading -> Box(
-                    Modifier.weight(1f).fillMaxWidth(0.6f).height(14.dp)
-                        .background(shimmerColor(), RoundedCornerShape(6.dp)),
-                )
-                else -> Spacer(Modifier.weight(1f).height(24.dp))
-            }
-            if (hadith != null) StatusPill(primary = hadith.primary, darkTheme = darkTheme)
+    Column(Modifier.fillMaxWidth().padding(horizontal = sidePadding).padding(top = 12.dp, bottom = 8.dp)) {
+        HadithCard(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 0.dp)) {
+            ReferenceSummary(hadith = hadith, loading = uiState is ReaderUiState.Loading, darkTheme = darkTheme, onOpenSunnah = onOpenSunnah)
         }
-        Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            when {
-                hadith != null && hadith.chapter.isNotEmpty() -> Text(
-                    text = hadith.chapter,
-                    style = typography.secondaryScaled,
-                    color = colors.muted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                uiState is ReaderUiState.Loading -> Box(
-                    Modifier.weight(1f).fillMaxWidth(0.35f).height(12.dp)
-                        .background(shimmerColor(), RoundedCornerShape(6.dp)),
-                )
-                else -> Spacer(Modifier.weight(1f))
-            }
-            SunnahLink(sunnahUrl = hadith?.sunnahUrl, onOpen = onOpenSunnah, keepSpaceWhenHidden = true)
-        }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
         PrimaryButton(uiState = uiState, onDraw = onDraw)
-        Spacer(Modifier.height(16.dp))
-        Box(Modifier.fillMaxWidth().heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
-            QuietActionsRow(uiState = uiState, isSaved = isSaved, onCopy = onCopy, onOpenSave = onOpenSave, onOpenShare = onOpenShare)
-        }
+        Spacer(Modifier.height(4.dp))
+        QuietActionsRow(uiState = uiState, isSaved = isSaved, onCopy = onCopy, onOpenSave = onOpenSave, onOpenShare = onOpenShare)
     }
 }
 
 @Composable
 private fun PrimaryButton(uiState: ReaderUiState, onDraw: () -> Unit) {
-    val colors = LocalHadithColors.current
     val loading = uiState is ReaderUiState.Loading
     val label = when (uiState) {
         is ReaderUiState.Loading -> "Seeking…"
@@ -745,23 +650,18 @@ private fun PrimaryButton(uiState: ReaderUiState, onDraw: () -> Unit) {
         label = "spinAngle",
     ).value
 
-    Button(
+    HadithPrimaryButton(
+        text = label,
         onClick = onDraw,
         enabled = !loading,
-        shape = HadithShapes.pill,
-        colors = ButtonDefaults.buttonColors(containerColor = colors.text, contentColor = colors.bg, disabledContainerColor = colors.text.copy(alpha = 0.55f)),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Refresh,
-            contentDescription = null,
-            modifier = Modifier
-                .size(17.dp)
-                .rotate(if (loading) rotation else 0f),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(text = label, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-    }
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Filled.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp).rotate(if (loading) rotation else 0f),
+            )
+        },
+    )
 }
 
 @Composable
@@ -772,77 +672,42 @@ private fun QuietActionsRow(
     onOpenSave: (Hadith) -> Unit,
     onOpenShare: (Hadith) -> Unit,
 ) {
-    val colors = LocalHadithColors.current
     val hadith = (uiState as? ReaderUiState.Loaded)?.hadith
     val enabled = hadith != null
-    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        QuietAction("Copy", HadithIcons.copy, enabled) { hadith?.let(onCopy) }
-        Divider14(colors.borderStrong)
-        QuietAction(
-            label = if (isSaved) "Saved" else "Save",
-            iconRes = HadithIcons.bookmark,
-            enabled = enabled,
-            accent = isSaved,
-            filledIconRes = if (isSaved) HadithIcons.bookmarkFilled else null,
-        ) { hadith?.let(onOpenSave) }
-        Divider14(colors.borderStrong)
-        QuietAction("Share", HadithIcons.upload, enabled) { hadith?.let(onOpenShare) }
-    }
-}
-
-@Composable
-private fun Divider14(color: Color) {
-    Box(Modifier.width(1.dp).height(14.dp).background(color))
-}
-
-/** §2.2: Save's icon fills accentSoft and both icon and text turn accent when saved. */
-@Composable
-private fun QuietAction(
-    label: String,
-    iconRes: Int,
-    enabled: Boolean,
-    accent: Boolean = false,
-    filledIconRes: Int? = null,
-    onClick: () -> Unit,
-) {
-    val colors = LocalHadithColors.current
-    val color = when {
-        !enabled -> colors.muted.copy(alpha = 0.45f)
-        accent -> colors.accent
-        else -> colors.muted
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (filledIconRes != null) {
-                Icon(
-                    painter = painterResource(filledIconRes),
-                    contentDescription = null,
-                    tint = colors.accentSoft,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(16.dp),
-            )
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(hadith?.key) { copied = false }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2000)
+            copied = false
         }
-        Spacer(Modifier.width(6.dp))
-        Text(text = label, color = color, fontWeight = FontWeight.Medium, fontSize = 14.sp)
     }
-}
 
-@Composable
-private fun AttributionLine(onClick: () -> Unit) {
-    val colors = LocalHadithColors.current
-    Text(
-        text = "Texts via Hadith API",
-        color = colors.muted,
-        fontSize = 13.4.sp,
-        modifier = Modifier.clickable(onClick = onClick),
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SecondaryAction(
+            label = if (copied) "Copied" else "Copy",
+            icon = painterResource(if (copied) HadithIcons.check else HadithIcons.copy),
+            onClick = { hadith?.let { onCopy(it); copied = true } },
+            enabled = enabled,
+            tone = if (copied) ActionTone.Accent else ActionTone.Neutral,
+            liveLabel = true,
+        )
+        SecondaryAction(
+            label = if (isSaved) "Saved" else "Save",
+            icon = painterResource(if (isSaved) HadithIcons.bookmarkFilled else HadithIcons.bookmark),
+            onClick = { hadith?.let(onOpenSave) },
+            enabled = enabled,
+            tone = if (isSaved) ActionTone.Accent else ActionTone.Neutral,
+        )
+        SecondaryAction(
+            label = "Share",
+            icon = painterResource(HadithIcons.upload),
+            onClick = { hadith?.let(onOpenShare) },
+            enabled = enabled,
+        )
+    }
 }

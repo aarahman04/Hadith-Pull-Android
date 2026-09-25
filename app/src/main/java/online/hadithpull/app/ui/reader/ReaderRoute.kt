@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,12 +66,9 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
             scope.launch { container.settingsRepository.setTextSize(next) }
             toastState.show("Text size: ${next.label}")
         },
-        onCopy = { hadith -> copyToClipboard(context, hadith, toastState) },
+        onCopy = { hadith -> copyToClipboard(context, hadith) },
         onOpenSave = { hadith -> saveSheetHadith = hadith },
         onOpenShare = { hadith -> shareSheetHadith = hadith },
-        onOpenAttribution = {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/fawazahmed0/hadith-api")))
-        },
         onOpenSunnah = { url ->
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         },
@@ -101,11 +97,9 @@ private fun cycleTextSize(current: TextSize): TextSize {
     return values[(values.indexOf(current) + 1) % values.size]
 }
 
-private fun copyToClipboard(context: android.content.Context, hadith: Hadith, toastState: online.hadithpull.app.ui.components.ToastState) {
+// R3-Q3: the Copy action confirms inline (label -> "Copied") on every API level, so no toast or
+// API-level branch is needed here any more.
+private fun copyToClipboard(context: android.content.Context, hadith: Hadith) {
     val clipboard = context.getSystemService(ClipboardManager::class.java)
     clipboard.setPrimaryClip(ClipData.newPlainText("Hadith", plainText(hadith)))
-    // §2.2: Android 13+ shows its own clipboard confirmation; a second toast would duplicate it.
-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-        toastState.show("Hadith copied to clipboard")
-    }
 }
