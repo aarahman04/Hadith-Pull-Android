@@ -9,30 +9,36 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,7 +54,8 @@ import online.hadithpull.app.ui.theme.LocalHadithTypography
 
 private const val CONTACT_EMAIL = "aarahman803@gmail.com"
 
-/** §2.5 About tab (About + Contact + Appearance). */
+/** §2.5 About tab (About + Contact + Appearance). §R1.6: centred hero, an editorial prose
+ * column instead of boxed panels, and grouped-list surfaces for the interactive sections. */
 @Composable
 fun AboutRoute(container: AppContainer, theme: Theme, onOpenLicenses: () -> Unit, onOpenPrivacy: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -92,14 +99,31 @@ private fun AboutScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(24.dp))
-        Text(text = "About", style = typography.pageTitle, color = colors.text)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
+            Text(
+                text = "HADITH PULL",
+                style = typography.eyebrow,
+                color = colors.muted,
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+            Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(text = "About", style = typography.pageTitle, color = colors.text, textAlign = TextAlign.Center)
         Spacer(Modifier.height(6.dp))
-        Text(text = "A quiet place to read one narration at a time.", color = colors.muted, fontSize = 16.3.sp)
-        Spacer(Modifier.height(20.dp))
+        Text(
+            text = "A quiet place to read one narration at a time.",
+            color = colors.muted,
+            fontSize = 16.3.sp,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(28.dp))
 
-        Panel {
+        ProseSection(eyebrow = "ABOUT THE APP", title = "Read. Reflect. Remember.") {
             Text(
                 text = "This project was built in my free time as a simple way to read and reflect on Hadith. " +
                     "The goal is to keep it clean, minimal, and focused on the message: no clutter, " +
@@ -126,10 +150,9 @@ private fun AboutScreen(
                 color = colors.textSoft,
             )
         }
-        Spacer(Modifier.height(19.dp))
+        SectionDivider()
 
-        Panel {
-            PanelTitle("A note on the Arabic")
+        ProseSection(eyebrow = "TYPEFACES", title = "A note on the Arabic") {
             Text(
                 text = "The Arabic can be set in three typefaces: Naskh (Amiri), the classical book hand; " +
                     "Clear (Scheherazade New), larger and rounder with fuller vowel marks; and Bold " +
@@ -150,10 +173,9 @@ private fun AboutScreen(
                 color = colors.textSoft,
             )
         }
-        Spacer(Modifier.height(19.dp))
+        SectionDivider()
 
-        Panel {
-            PanelTitle("Where the texts come from")
+        ProseSection(eyebrow = "SOURCE", title = "Where the texts come from") {
             Text(
                 text = buildAnnotatedString {
                     append("Narrations come from the open-source ")
@@ -200,16 +222,16 @@ private fun AboutScreen(
                 color = colors.textSoft,
             )
         }
-        Spacer(Modifier.height(19.dp))
+        Spacer(Modifier.height(28.dp))
 
-        Panel {
+        GroupPanel {
             PanelTitle("Appearance")
             Spacer(Modifier.height(14.dp))
             ThemeSegmentedControl(theme, onSetTheme)
         }
         Spacer(Modifier.height(19.dp))
 
-        Panel {
+        GroupPanel {
             PanelTitle("Say salam")
             Spacer(Modifier.height(10.dp))
             Text(
@@ -221,44 +243,38 @@ private fun AboutScreen(
             Button(onClick = onSendMessage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth()) {
                 Text("Send a message")
             }
-            Spacer(Modifier.height(10.dp))
-            SocialButton("Instagram") { onOpenLink("https://www.instagram.com/aarahmans/") }
-            Spacer(Modifier.height(10.dp))
-            SocialButton("LinkedIn") { onOpenLink("https://www.linkedin.com/in/aarahman04/") }
-            Spacer(Modifier.height(10.dp))
-            SocialButton("GitHub") { onOpenLink("https://github.com/aarahman04") }
+            Spacer(Modifier.height(16.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(colors.surfaceSolid, RoundedCornerShape(16.dp))
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
+            ) {
+                LinkRow("Instagram", trailingIconRes = HadithIcons.openInNew) { onOpenLink("https://www.instagram.com/aarahmans/") }
+                RowDivider()
+                LinkRow("LinkedIn", trailingIconRes = HadithIcons.openInNew) { onOpenLink("https://www.linkedin.com/in/aarahman04/") }
+                RowDivider()
+                LinkRow("GitHub", trailingIconRes = HadithIcons.openInNew) { onOpenLink("https://github.com/aarahman04") }
+            }
         }
         Spacer(Modifier.height(19.dp))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(colors.surface, HadithShapes.lg)
-                .border(1.dp, colors.border, HadithShapes.lg)
-                .clickable(onClick = onOpenPrivacy)
-                .padding(22.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = "Privacy policy", color = colors.text, fontWeight = FontWeight.Medium)
-        }
-        Spacer(Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(colors.surface, HadithShapes.lg)
-                .border(1.dp, colors.border, HadithShapes.lg)
-                .clickable(onClick = onOpenLicenses)
-                .padding(22.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = "Open-source licenses", color = colors.text, fontWeight = FontWeight.Medium)
+        GroupPanel {
+            PanelTitle("Legal")
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(colors.surfaceSolid, RoundedCornerShape(16.dp))
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
+            ) {
+                LinkRow("Privacy policy", chevron = true, onClick = onOpenPrivacy)
+                RowDivider()
+                LinkRow("Open-source licenses", chevron = true, onClick = onOpenLicenses)
+            }
         }
         Spacer(Modifier.height(24.dp))
 
-        Column(horizontalAlignment = Alignment.Start) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "Hadith Pull, built for quiet reading.", color = colors.muted, fontSize = 13.4.sp)
             Text(text = "Texts via Hadith API", color = colors.muted, fontSize = 13.4.sp)
             Text(text = "Version ${BuildConfig.VERSION_NAME}", color = colors.muted, fontSize = 13.4.sp)
@@ -273,8 +289,34 @@ private val sourceCollections = listOf(
     "The Forty Hadith of Shah Waliullah",
 )
 
+/** §R1.6: the free-text sections read as an editorial column -- a section eyebrow, a Cormorant
+ * title, then body copy -- with no surrounding box or border. */
 @Composable
-private fun Panel(content: @Composable () -> Unit) {
+private fun ProseSection(eyebrow: String, title: String, content: @Composable ColumnScope.() -> Unit) {
+    val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
+    Column(Modifier.fillMaxWidth()) {
+        Text(text = eyebrow.uppercase(), style = typography.sectionLabel, color = colors.accentInk)
+        Spacer(Modifier.height(6.dp))
+        Text(text = title, style = typography.panelTitle, color = colors.text)
+        Spacer(Modifier.height(14.dp))
+        content()
+    }
+}
+
+@Composable
+private fun SectionDivider() {
+    val colors = LocalHadithColors.current
+    Spacer(Modifier.height(20.dp))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+    Spacer(Modifier.height(28.dp))
+}
+
+/** The three interactive groups (Appearance, Say salam, Legal) keep a bordered surface, unlike
+ * the prose sections above -- they hold controls, not text, so the boundary still earns its
+ * keep. */
+@Composable
+private fun GroupPanel(content: @Composable ColumnScope.() -> Unit) {
     val colors = LocalHadithColors.current
     Column(
         modifier = Modifier
@@ -300,8 +342,8 @@ private fun SourceChip(label: String) {
     val colors = LocalHadithColors.current
     Box(
         modifier = Modifier
-            .background(colors.bg, HadithShapes.pill)
-            .border(1.dp, colors.borderStrong, HadithShapes.pill)
+            .background(colors.surfaceSolid, HadithShapes.pill)
+            .border(1.dp, colors.border, HadithShapes.pill)
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Text(text = label, color = colors.textSoft, fontSize = 13.4.sp)
@@ -322,7 +364,7 @@ private fun ThemeSegmentedControl(current: Theme, onSelect: (Theme) -> Unit) {
             Box(
                 modifier = Modifier
                     .clickable { onSelect(theme) }
-                    .background(if (selected) colors.accentSoft else androidx.compose.ui.graphics.Color.Transparent, HadithShapes.pill)
+                    .background(if (selected) colors.accentSoft else Color.Transparent, HadithShapes.pill)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
                 Text(
@@ -336,16 +378,42 @@ private fun ThemeSegmentedControl(current: Theme, onSelect: (Theme) -> Unit) {
     }
 }
 
+/** §R1.6: replaces the old stacked SocialButton/plain-Row destinations -- one row in a
+ * grouped-list surface, label + trailing icon, the whole row clickable. `chevron = true` (the
+ * in-app destinations, Privacy/Licenses) draws a chevron instead of the open-in-new glyph the
+ * external links (Instagram/LinkedIn/GitHub, via `trailingIconRes`) use. */
 @Composable
-private fun SocialButton(label: String, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        shape = HadithShapes.pill,
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalHadithColors.current.text),
-        border = androidx.compose.foundation.BorderStroke(1.dp, LocalHadithColors.current.border),
+private fun LinkRow(label: String, trailingIconRes: Int? = null, chevron: Boolean = false, onClick: () -> Unit) {
+    val colors = LocalHadithColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, modifier = Modifier.weight(1f))
-        Icon(painter = painterResource(HadithIcons.openInNew), contentDescription = null, modifier = Modifier.size(16.dp))
+        Text(text = label, color = colors.text, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        if (chevron) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(16.dp),
+            )
+        } else if (trailingIconRes != null) {
+            Icon(
+                painter = painterResource(trailingIconRes),
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
+}
+
+@Composable
+private fun RowDivider() {
+    val colors = LocalHadithColors.current
+    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
 }
