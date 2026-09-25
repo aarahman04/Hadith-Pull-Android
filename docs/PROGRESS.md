@@ -873,3 +873,58 @@ contracts, FileProvider).
 Step 25 JSON-defaults bug fixed above, caught precisely because this step (and the user's own
 manual pass before it) exercised the actual exported file instead of trusting the JVM tests alone.
 
+
+---
+
+## Round 3: visual redesign (Steps 27-34)
+
+### Step 27 -- Phase 0 design-system foundation
+
+**Done:**
+- New `ui/theme/Spacing.kt` (`HadithSpacing`: xs/sm/md/lg/xl/xxl/section, §0.1).
+- New `ui/components/Surfaces.kt`: `HadithCard` (the one card language: `surfaceSolid` fill, 1dp
+  `border`, 16dp radius, no elevation; `selected` draws `accentSoft` fill + accent-tinted border),
+  `GroupedList` (a zero-padding `HadithCard`), `ListRow`, `RowDivider`, `ChevronTrailing`,
+  `ExternalTrailing`.
+- New `ui/components/SectionHeader.kt`: `SectionHeader` (eyebrow/title/lede/action) and
+  `ScreenHero` (the hairline-eyebrow-title-subline block, extracted so Reader/Bookmarks/About stop
+  each carrying their own copy -- wiring happens in Steps 29/31/33).
+- New `ui/components/Actions.kt`: `ActionTone`, `HadithPrimaryButton`, `SecondaryAction` (with
+  `liveLabel` for the "Copied" live-region text and `iconRotation` for the expand chevron),
+  `TertiaryLink`.
+- New `ui/components/Shimmer.kt`: `shimmerColor()` moved out of `ReaderScreen.kt` unchanged
+  (now `internal`, in `ui.components`), so it isn't duplicated by `ReferenceSummary`.
+  `ReaderScreen.kt` now imports it; its old private copy and the now-unused
+  `FastOutSlowInEasing`/`RepeatMode`/`lerp` imports were removed.
+- New `ui/components/ReferenceSummary.kt`: the unified reference block (collection · number +
+  status pill, chapter + Sunnah link, both rows height-stable across loading/loaded/empty) used
+  by the Reader dock (Step 29) and saved-hadith cards (Step 32).
+- New `ui/components/NewFolderField.kt`: the collapsed "+ New folder" `TertiaryLink` that expands
+  into a text field + Create button, used by the Save sheet (Step 30) and Bookmarks root (Step 31).
+- `ui/theme/Theme.kt`: `HadithTheme` now passes `typography = interMaterialTypography(inter)` to
+  `MaterialTheme` -- every one of the 15 Material `Typography` roles gets `fontFamily = inter`,
+  fixing plain `Text` (buttons, dialogs, nav labels, menus) silently rendering in Roboto. Both
+  colour schemes also gain `surfaceContainer`, `secondaryContainer`, `onSecondaryContainer`,
+  `surfaceVariant`, `onSurfaceVariant` mapped onto the existing Hadith tokens, so M3's default
+  lavender/grey no longer shows through in menus or the nav indicator (wired in Step 28).
+
+No screen is wired to any of this yet -- Steps 28-33 do that. This step only adds the shared
+building blocks and confirms they compile.
+
+**Commands run:**
+- First `assembleDebug`: FAILED -- `ReferenceSummary.kt` called `TertiaryLink(...) { ... }` with a
+  trailing lambda, but `TertiaryLink`'s `onClick` parameter isn't last (it's second, before
+  `modifier`), so Kotlin couldn't match it as a trailing lambda. Fixed by passing `onClick =` by
+  name instead of a trailing lambda.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 1m 24s.
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS (0 error-severity findings; SARIF report shows only pre-existing Correctness-category informational hits)
+- `testDebugUnitTest`: PASS, 105/105 (unchanged -- this step adds no new logic, only Compose UI)
+
+**Unspecified choices:** none -- this step is pure scaffolding, no literal-value judgment calls.
+
+**NOT TESTED:** nothing yet exercises these components on screen (no wiring this step).
+
+**Blockers/questions:** none.
