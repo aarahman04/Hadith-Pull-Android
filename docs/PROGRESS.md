@@ -630,3 +630,62 @@ attempt). `Icons.Filled.MoreVert` compiled as specified -- it is in core.
 
 **Blockers/questions:** none -- both issues were mechanical (a missing-icon compile error and a deprecation warning), not spec ambiguity, and were self-corrected within the step.
 
+
+### Step 23 — About redesign and Licenses consolidation
+
+**Done:** `AboutScreen.kt` gets a centred hero (eyebrow "HADITH PULL",
+title "About", lede) matching Reader/Bookmarks, and a centred footer. The
+three prose sections (about-the-app, Arabic typefaces, where the texts
+come from) are rewritten as `ProseSection` -- an eyebrow, a Cormorant
+title, body text, no surrounding box -- separated by hairline dividers
+via `SectionDivider`, instead of the old boxed `Panel`. Appearance, Say
+salam and a new "Legal" group (replacing two separate plain rows for
+Privacy policy / Open-source licenses) became `GroupPanel`-wrapped grouped
+lists, reusing the Step 22 row pattern: a bordered/rounded surface with
+hairline dividers between rows. The three social links moved from stacked
+`OutlinedButton`s into one such list (`LinkRow`, trailing open-in-new for
+external links, a chevron for the two in-app destinations). Source chips
+switched fill from `colors.bg` to `colors.surfaceSolid` per the spec.
+
+`LicensesScreen.kt`'s entry list is rewritten around a `LicenseRow`
+sealed interface (`Single` / `Group`). The Hadith API/Unlicense entry
+stays one prominent top row, titled "Hadith API dataset (Fawaz Ahmed)".
+Five OFL font entries and eleven Apache-2.0 library entries (the original
+ten plus `kotlinx.coroutines`, missing from the old list despite shipping
+in the app) each collapse into one row -- "Fonts" and "Third-party
+libraries" -- with their subtitles giving the family/library names and
+the license inline, so nothing meaningful is hidden, just de-emphasised.
+`LicensesRoute` gained a middle navigation level (`expandedGroup`) between
+the top list and a license's full text; `BackHandler` now clears
+whichever level is innermost first.
+
+Verified the library name list against the release dependency tree
+(`:app:dependencies --configuration releaseRuntimeClasspath`, filtered to
+`org.jetbrains.kotlin*`/`androidx.*`): every Apache-2.0 group present in
+the classpath (Compose, Activity, Annotation, Arch Core, Collection, and
+the rest of the AndroidX/Compose surface) is covered by the existing
+"AndroidX and Jetpack Compose libraries" umbrella in the group's subtitle
+-- no additional named group was missing.
+
+This step also finished Step 19's deferred em-dash cleanup for
+`LicensesScreen.kt`, since the whole entry list was replaced anyway.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew :app:dependencies --configuration releaseRuntimeClasspath` (filtered) → confirmed the library list's coverage.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` → BUILD SUCCESSFUL in 14s. The only compiler warning is the pre-existing `@RawRes` annotation-target notice on `LicenseEntry`'s constructor, present since Step 10 -- unrelated to this step's changes.
+- `grep -n "—" AboutScreen.kt LicensesScreen.kt` → no hits.
+
+**Acceptance:**
+- `assembleDebug` + `testDebugUnitTest` pass: PASS
+- About's hero and footer are centred: PASS
+- The three prose sections have no box/border: PASS
+- Appearance, Say salam and Legal are grouped-list surfaces: PASS
+- Licenses shows the Hadith API entry prominently, one Fonts group and one Third-party libraries group (with kotlinx.coroutines present), and every group drills into its own entries: PASS
+
+**Unspecified choices:**
+- The Hadith API entry title uses the parenthetical form ("... (Fawaz Ahmed)") rather than an em dash, per the spec's own stated default when it flagged this as a judgment call.
+- Section-1 (the three free paragraphs) needed an eyebrow/title of its own for the new `ProseSection` wrapper; used "ABOUT THE APP" / "Read. Reflect. Remember." as the spec suggested, reusing the Reader's own H1 line rather than inventing new copy.
+- Section 2 and 3 also needed short eyebrow words the spec didn't specify verbatim ("TYPEFACES", "SOURCE") -- their titles ("A note on the Arabic", "Where the texts come from") were already fixed by the spec and are unchanged; only the short all-caps eyebrow above each is my own wording, matching the Reader's "HADITH OF THE MOMENT" pattern.
+
+**Blockers/questions:** none.
+
