@@ -1062,3 +1062,51 @@ items for the user, per this project's convention.
 user, per this project's convention.
 
 **Blockers/questions:** none.
+
+### Step 31 -- Bookmarks root: LazyColumn, shared header/list, Backup section
+
+**Done:**
+- **Real bug fixed** (found during Round 3's audit, not in the user's original list): `FoldersScreen`
+  was a plain `Column(fillMaxSize())` with no scroll modifier at all. With more than roughly a
+  screenful of folders, the Library entry point (and anything after it) was pushed off-screen and
+  unreachable -- almost certainly the actual root cause of the "export/import shown poorly"
+  complaint, on top of the visual issue the spec called out. The root is now a `LazyColumn`, and
+  every section is capped at `widthIn(max = 720.dp)`.
+- Hero replaced with `ScreenHero("YOUR LIBRARY", "Bookmarks", typography.pageTitle, subline)`.
+- "Folders" gets a `SectionHeader`. The always-visible `OutlinedTextField` + "Create folder" button
+  row is replaced by `NewFolderField`: collapsed, it renders as the header's trailing `action`
+  slot (a "+ New folder" tertiary link); once tapped, the header's action becomes `null` and a
+  full-width expanded `NewFolderField` renders below it instead. The `Existing`/`Created` toast
+  behaviour and the 40-char cap are unchanged; `creatingFolder` collapses back to the link on a
+  successful create.
+- The non-empty folder list is now a `GroupedList` of the existing `FolderRow`s (unchanged content)
+  separated by `RowDivider()`, replacing the hand-rolled bordered `Column`. The chevron is now
+  `ChevronTrailing()` instead of a literal `Icon`. The empty state is a `HadithCard` (48dp
+  accent-soft tile with a bookmark glyph, "No folders yet", a helper line, and a
+  `HadithPrimaryButton("Read a Hadith")`) instead of the old translucent `HadithShapes.lg` panel
+  with a stock `Button`.
+- The Library entry point moves under a new "Backup" `SectionHeader` (with a lede) and becomes a
+  `GroupedList` of three `ListRow`s -- "Export to a file", "Share library file", "Import a library
+  file", each with a subtitle and a `ChevronTrailing()` -- replacing the single expand-to-reveal row
+  of bare `TextButton`s, which was the other half of the "shown poorly" bug. `LibrarySection` gained
+  a `hasFolders: Boolean` param; Export and Share now call a local `requireFolders { }` guard that
+  toasts "No bookmarks to export yet." instead of writing/sharing an empty file when there are no
+  folders. Import now checks `previewImport(doc).itemCount == 0` after a successful parse and shows
+  a new "Nothing to import" `AlertDialog` instead of the normal confirm-then-apply flow in that case.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 21s, first attempt.
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS (0 error-severity findings)
+- `testDebugUnitTest`: PASS, 105/105
+
+**Unspecified choices:** none -- every value traces to the spec.
+
+**NOT TESTED:** the LazyColumn scroll fix and the collapsed/expanded NewFolderField transition are
+Compose layout behaviour -- device-pass items for the user. This step is the one most worth a
+second look on the user's own device pass, since it fixes an actual functional bug (no scroll) that
+predates this round's visual work.
+
+**Blockers/questions:** none.
