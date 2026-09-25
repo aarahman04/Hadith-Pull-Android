@@ -689,3 +689,46 @@ This step also finished Step 19's deferred em-dash cleanup for
 
 **Blockers/questions:** none.
 
+
+### Step 24 — Icons: `tools/make_icons.py`
+
+**Done:** added `tools/make_icons.py`, run with the system's `python`
+(Anaconda's, with Pillow 10.4.0 available -- verified before starting).
+It loads `C:\Users\aarah\Hadith-Pull\logos and favicons\hadith-pull-logo_app.png`,
+keys its opaque cream card background (and white outer corners) to
+transparent by per-pixel colour distance, crops to the mark's content
+bounding box with 2% padding, then fits that mark into the central 66dp
+safe zone of a 108dp adaptive-icon canvas at all 5 densities
+(`ic_launcher_foreground.png`), derives a white-silhouette
+`ic_launcher_monochrome.png` from the same alpha channel, and composites
+legacy square/round `ic_launcher.png`/`ic_launcher_round.png` at the
+5 legacy sizes with the `#F6F2EA` background baked in. It also writes
+`drawable-nodpi/brand_logo.png` -- the same keyed/cropped mark centred on
+a 192x192 transparent canvas, no safe-zone shrink -- replacing the old
+copy of the website's favicon-derived art (R-Q2). The script takes no
+arguments and is idempotent; nothing about this step touched
+`mipmap-anydpi-v26/ic_launcher.xml` or `colors.xml`, since both already
+pointed at the right filenames/colour from the original Step 2 build.
+
+**Verified before committing** (not just eyeballed): the foreground's four
+corner pixels and two near-corner samples are all `(0,0,0,0)` -- fully
+transparent, no white square or frame-line remnant; the monochrome
+layer's alpha bounding box exactly matches the foreground's; a sampled
+monochrome pixel inside the mark reads opaque white `(255,255,255,255)`.
+
+**Commands run:**
+- `python tools/make_icons.py` → `make_icons: wrote foreground/monochrome/legacy icons at 5 densities, and brand_logo.png`.
+- `python -c "..."` (Pillow pixel-bbox/corner checks above) → all as expected.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` → BUILD SUCCESSFUL in 11s, all tests green.
+
+**Acceptance:**
+- The script runs clean and reports success: PASS
+- `assembleDebug` passes: PASS
+- All five foreground/monochrome density folders and both legacy-icon density sets regenerated: PASS (`git status` shows all 20 PNGs + brand_logo.png modified)
+- `brand_logo.png` is the new logo with a transparent background: PASS (192x192, alpha bbox 17,9-175,183 -- real transparent margin, not the old opaque favicon copy)
+- No manual Android Studio step was needed: PASS
+
+**Unspecified choices:** none -- `CARD_BG`, `KEY_TOLERANCE` and the safe-zone fraction were all given exact values in the spec, taken from this session's own earlier pixel measurements of the source file.
+
+**Blockers/questions:** none. `logos and favicons/hadith_pull_logo.png` (the old, undeleted master file the user mentioned) is still on disk in the web repo, untouched -- out of this app's scope per R0, flagging again in case the user meant to remove it themselves.
+
