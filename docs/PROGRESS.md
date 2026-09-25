@@ -534,3 +534,59 @@ they don't scale with the reading-scale setting by design.
 
 **Blockers/questions:** none.
 
+
+### Step 21 — Reader dock layout and scroll rules
+
+**Done:** `ReaderScreen`'s single `Column().verticalScroll(...)` is replaced
+by `BoxWithConstraints` choosing docked vs. stacked mode at a 480dp content-
+height threshold. Docked mode: a `LazyColumn` (`ReaderContentList`, the
+only scrolling region) holding the hero, a `stickyHeader` reading bar, the
+narration block, the full reference (only when expanded) and the
+attribution line, with a fixed `ReaderDock` sibling below it holding the
+brief reference + status pill, the chapter line + Sunnah link, New Hadith,
+and the Copy/Save/Share row (R-Q1 -- fixed, its own row). Stacked mode
+(short or landscape windows) renders the same `ReaderDockContent` as a
+trailing item inside the same `LazyColumn` instead of a second layout --
+there is still exactly one scrolling region either way.
+
+`BriefReference` and the Reader's two old `SunnahLink` call sites are
+gone; the Sunnah link now lives only in the dock, with a new
+`keepSpaceWhenHidden` parameter that renders the same row at `alpha = 0f`
+and non-clickable instead of collapsing when `sunnahUrl` is null, so the
+dock's second row never changes height. `FullReference` stays in the
+scrolling list, shown only when `state.expanded`. The dock's top two rows
+(ref-main + pill, chapter + link) show shimmer placeholders while Loading
+and stay empty-but-sized during Failure, so nothing jumps height as a new
+hadith arrives (R0.3's "dock height stability").
+
+The skeleton's shimmer animation was factored into a small
+`shimmerColor()` composable, reused by both `SkeletonBlock` and the dock's
+two loading placeholders, rather than duplicating the
+`rememberInfiniteTransition` block three times.
+
+Scroll rules: scroll-to-top on every draw after the first (via
+`listState.scrollToItem(0)` inside the existing `LaunchedEffect(uiState)`)
+and scroll-to-the-reading-bar on expand/collapse
+(`listState.animateScrollToItem(1)` after a `withFrameNanos {}` yield, so
+the toggled content has measured before the scroll runs) replace the old
+`ScrollState.animateScrollTo(0)` and `BringIntoViewRequester` calls, which
+are both gone from the file.
+
+**Commands run:**
+- First `assembleDebug` attempt failed: `Unresolved reference 'stickyHeader'` -- I'd added an explicit `import androidx.compose.foundation.lazy.stickyHeader`, but `stickyHeader` is a member function of `LazyListScope`, not a top-level extension, so the import itself was invalid. Removed it; `stickyHeader("bar") { ... }` resolves fine as a plain member call inside the `LazyColumn` lambda (still needs `@OptIn(ExperimentalFoundationApi::class)` on `ReaderContentList`, which stayed).
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` → BUILD SUCCESSFUL in 14s after the fix, all tests green.
+- `grep -n "BringIntoViewRequester\|verticalScroll\|rememberScrollState"` on the file → no hits.
+- `grep -c "LazyColumn("` on the file → 1.
+
+**Acceptance:**
+- `assembleDebug` + `testDebugUnitTest` pass: PASS
+- Exactly one `LazyColumn`, no `verticalScroll` remains: PASS
+- The dock's two top rows are height-stable across states: PASS (verified by reading the composable -- both branches of each `when` occupy the same row height: `Text`/skeleton `Box`/`Spacer` all sized consistently, and the 48dp `heightIn` on the link row is unconditional)
+- The Sunnah link appears exactly once on screen, inside the dock: PASS
+- `BringIntoViewRequester` no longer appears in the file: PASS
+- Compose layout has no JVM test coverage, as the spec anticipated -- NOT TESTED by an automated test; this is the step most worth the user's own device pass, especially the sticky-bar background swap and the two scroll animations, which can't be verified by reading code alone.
+
+**Unspecified choices:** none beyond what the spec's code sample already fixed -- I followed the R1.4 structure as written, including its exact composable names and parameter shapes.
+
+**Blockers/questions:** none. (One self-corrected build error, not a spec ambiguity -- noted above for the record.)
+
