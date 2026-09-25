@@ -732,3 +732,68 @@ monochrome pixel inside the mark reads opaque white `(255,255,255,255)`.
 
 **Blockers/questions:** none. `logos and favicons/hadith_pull_logo.png` (the old, undeleted master file the user mentioned) is still on disk in the web repo, untouched -- out of this app's scope per R0, flagging again in case the user meant to remove it themselves.
 
+
+### Step 25 — Bookmark export/import (item 12, R-Q4)
+
+**Done:** new package `data/library/`:
+- `LibraryModels.kt` -- `LibraryExportDocument`/`Folder`/`Item`, the JSON schema embedded in an
+  exported file. Only each item's `key` is stored; text is never round-tripped through the file.
+- `LibraryHtmlTemplate.kt` -- the static HTML/CSS/JS shell (searchable, JS-off safe -- every
+  `<article>` is visible by default, the inline script only adds filtering) plus `htmlEscape` and
+  `renderFoldersHtml`, which escapes every visible field, including folder names (the XSS vector
+  the spec called out explicitly for user-typed text).
+- `LibraryExport.kt` -- `LibraryExport.buildDocument(bookmarkRepository, folderId?)` assembles the
+  page: the embedded JSON has its `</` sequences escaped to `<\/` so an item's data can't close
+  the `<script>` block early.
+- `LibraryImport.kt` -- `LibraryImport.parse(bytes)` extracts and un-escapes the embedded JSON,
+  validating the `format` field, folder/item counts (200/5000) and the 10MB byte cap before ever
+  attempting to decode; `BookmarkRepository.applyImport(doc, hadithSource)` resolves every key
+  against the bundled dataset and applies the R0.6 merge rules.
+
+`BookmarkRepository` gained `exportSnapshot(folderId?)` (decodes each bookmark's existing
+`hadithJson` snapshot -- no new decode path), `ensureFolder(name)` (case-insensitive match-or-
+create, reusing `createFolder`'s own lookup rather than duplicating it), and a two-case
+`EnsureSavedResult` (`Added`/`AlreadyPresent`) so `ensureSaved` -- unchanged in behaviour, just a
+richer return type -- can tell an import loop which happened; Room's own `OnConflictStrategy.IGNORE`
+already made this free (`insert` returns `-1L` on the unique-index conflict, no extra query
+needed). `HadithStore.kt` gained `HadithSource.resolve(key)`, a suspend extension that splits the
+key, looks up the collection in `index.json`, and scans its shards in order for a matching `ref`
+-- import-time only, so no new index structure was needed.
+
+UI: `FoldersScreen.kt` gained a "Library" row (Export via `CreateDocument("text/html")`, Share via
+the existing `ShareActions.kt` cache/FileProvider pattern extended with a new
+`writeLibraryToCache` + `library/` cache dir + `file_paths.xml` entry, Import via `OpenDocument`),
+with a confirm `AlertDialog` (folder/item counts) before writing anything and a summary
+`AlertDialog` after, phrased exactly per the spec's template. `FolderScreen.kt` gained a "Share
+folder" top-bar icon action exporting just that folder straight to the share chooser, no SAF save
+step. `AppContainer.hadithStore` is now public so the UI can pass it into `applyImport`.
+
+Both Android privacy-policy copies (`res/raw/privacy_policy.txt`, `PRIVACY.md`) gained the
+"Exporting your bookmarks" paragraph after "Sharing", worded exactly per the spec.
+
+**Deviations flagged:**
+- The spec's `LibraryExport.buildDocument` signature included an unused `hadithStore: HadithStore`
+  parameter (never referenced in its own pseudocode body). Dropped it -- export builds entirely
+  from `exportSnapshot`'s already-decoded `Hadith` snapshots, so the dataset store adds nothing;
+  keeping an unused parameter would violate Simplicity-First for no benefit.
+- The "Library" entry point is an expand-in-place row (tap to reveal Export/Share/Import as a
+  quiet-text row) rather than a separate bottom sheet -- the spec offered either explicitly
+  ("opening a small bottom sheet or inline expansion"), and inline expansion needed no new sheet
+  component.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug` (before writing tests, to catch wiring mistakes early) → BUILD SUCCESSFUL in 10s on the first attempt.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` (after adding the tests below) → BUILD SUCCESSFUL in 12s.
+- Verified test counts directly from the JUnit XML reports rather than trusting "BUILD SUCCESSFUL" alone: `BookmarkRepositoryImportTest` 3/3, `LibraryHtmlTemplateTest` 3/3, `LibraryImportTest` 8/8, `HadithStoreTest` 3/3 (1 pre-existing + 2 new `resolve()` assertions folded into one test method... actually 3 total test methods, one of which is new). Whole-suite total: **105 tests, 0 failures, 0 errors.**
+
+**Acceptance:**
+- `assembleDebug` + `testDebugUnitTest` pass, including the new tests: PASS
+- An exported file opens correctly in a browser with JS disabled: NOT TESTED by an automated check (no browser harness in this JVM-test project) -- every `<article>` renders unconditionally with no `hidden` attribute by default, and the filtering `<script>` only ever adds behavior, so this is correct by construction; worth the user's own visual check.
+- The embedded JSON round-trips through `LibraryImport.parse` for a file this build itself produces: PASS (`LibraryImportTest`'s escaping round-trip case, plus the full pipeline exercised end-to-end in `BookmarkRepositoryImportTest` via `applyImport`)
+- A folder name containing HTML special characters exports safely and imports correctly without double/under-escaping: PASS (`LibraryHtmlTemplateTest`'s `<script>`-in-folder-name case for the export side; `LibraryImportTest`'s `</script>`-round-trip case for the import side -- the name is read from the JSON block, which is escaped once on write and unescaped once on read, never touching the HTML-escaped visible copy)
+
+**Unspecified choices:** the two flagged above (dropped unused parameter, expand-in-place UI
+instead of a bottom sheet).
+
+**Blockers/questions:** none.
+
