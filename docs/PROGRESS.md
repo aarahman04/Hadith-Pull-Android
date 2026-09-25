@@ -43,10 +43,11 @@ separate from the numbered spec steps, added on request.
 | 11 | Card renderer (§3.1, §3.2) | `5e092cf` | done |
 | 12 | Share sheet + share paths (§3.3, §3.4, S1, S2) | `70540e0` | done |
 | 13 | Release hardening / G7 | `83f5e80` | done |
-| 14 | Bundled-dataset data layer (§4: assets, HadithStore, DrawEngine rewrite, Hadith model rewrite, Room snapshot, network removal) | — | not started |
-| 15 | Bundled-dataset UI (§4: references, grades, Sunnah.com link, About, Licenses, Privacy) | — | not started |
-| 16 | Card/share field renames, release/G7 offline check | — | not started |
-| 17 | Polish pass (D22, blocked on an emulator audit + user notes) | — | not started |
+| 14 | Bundled-dataset data layer (§4: assets, HadithStore, DrawEngine rewrite, Hadith model rewrite, Room snapshot, network removal) | `f86777d` | done |
+| 15–16 | Bundled-dataset UI (references, grades, Sunnah.com link, About/Licenses copy) + release/G7 offline check | `4feeff0` | done |
+| — | Fix status-bar overlap and stray border on the brief reference | `1b5b512` | done |
+| — | Icon-only share targets, centered hero text | `9e86196` | done |
+| 17 | Superseded — the user's own bug reports/notes became "Round 2" (§R0–R1 of the spec) instead of a separate emulator-audit step | — | superseded, see Round 2 below |
 
 ## Environment notes for the next session
 
@@ -405,3 +406,43 @@ sharing the same simple name in the same package and failed to compile.
 `NavDestination.hasRoute(route: KClass<*>)` also isn't the right call for
 type-safe routes in navigation-compose 2.9.0 — the reified
 `NavDestination.hasRoute<T>()` (no KClass argument) is.
+
+---
+
+## Round 2: polish and bug-fix pass (Steps 18–26)
+
+Spec: `Phase R0` (review, decisions R-Q1–R-Q4) and `Phase R1` (the Step
+18–26 build spec) in the same spec file, appended 2026-09-25. Per the
+user's instruction, Steps 18–26 are being built straight through in one
+session, without stopping for a "go" after each step — but each step is
+still committed separately, in order, with its own report below, exactly
+as if approval gating were still on. A consolidated summary follows after
+Step 26.
+
+### Step 18 — Fix hidden toasts inside the Save and Share sheets
+
+**Done:** `ModalBottomSheet` renders in a separate dialog window on top of
+the activity's `Scaffold`, where `AppNav.kt`'s `ToastHost` lives. Any toast
+fired while a sheet was open ("Saved to {name}", "Folder \"{name}\"
+created", "Card saved", the Instagram-fallback message, the storage-
+permission message, the render-failure message) rendered behind the sheet
+and its scrim and was invisible — the underlying action still succeeded,
+so a user tapping again could save duplicates without any feedback.
+`SaveSheet.kt` and `ShareSheet.kt`'s private `ShareSheet` composable each
+now wrap their `Column` in a `Box` with their own `ToastHost`, anchored
+bottom-centre with a 24dp offset, matching the existing host's placement.
+`AppNav.kt`'s own `ToastHost` is untouched — it still covers toasts fired
+with no sheet open (clipboard copy, "Text size: …", folder create/rename/
+delete from the Bookmarks tab).
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug --rerun-tasks` → BUILD SUCCESSFUL in 55s (a first run showed everything UP-TO-DATE despite the edits — a stale Gradle daemon from before this session's edits; stopping the daemon and re-running with `--rerun-tasks` confirmed a genuine clean compile with no errors, only one pre-existing warning in `LicensesScreen.kt` unrelated to this step).
+
+**Acceptance:**
+- `assembleDebug` passes: PASS
+- Both `SaveSheet.kt` and the private `ShareSheet` composable in `ShareSheet.kt` contain a `ToastHost` call inside their `ModalBottomSheet` content: PASS (verified by grep)
+
+**Unspecified choices:** none — this step's instructions were exact.
+
+**Blockers/questions:** none.
+
