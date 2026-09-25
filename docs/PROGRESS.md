@@ -1020,3 +1020,45 @@ layout at various widths are Compose-only behaviour with no JVM-testable surface
 items for the user, per this project's convention.
 
 **Blockers/questions:** none.
+
+### Step 30 -- Save sheet: card folder rows, NewFolderField, Done (R3-Q2)
+
+**Done:**
+- `ModalBottomSheet` now takes `sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)`,
+  `containerColor = colors.bg`, and an explicit `dragHandle = { BottomSheetDefaults.DragHandle(width = 36.dp, height = 4.dp, color = colors.borderStrong) }`
+  (the sheet already had M3's default handle; this makes it explicit and on-brand instead of relying
+  on the default).
+- `SaveSheetFolderRow` is now a `HadithCard(selected = checked, ...)` -- accentSoft fill + an
+  accent-tinted border when the hadith is already saved there, replacing the old flat
+  `bg`/`accentSoft` background with a plain 1dp border. Inside: a 40dp leading tile (accentSoft
+  fill + accent `bookmark` icon when unchecked; accent fill + `bg`-tinted `bookmarkFilled` icon when
+  checked), the name + count column, and a 22dp trailing check circle (accent fill + a 13dp check
+  glyph when checked; a 1.5dp borderStrong ring when not). The row's tap-to-save behaviour and its
+  "Saved to {name}"/"Removed from {name}" toasts are unchanged (R3-Q2).
+- The always-visible `OutlinedTextField` + "Create" `Row` is replaced by the shared
+  `NewFolderField` component: collapsed, it's a "+ New folder" tertiary link; tapping it expands
+  into the text field (same 40-char cap, same `submitCreate()` logic) with a Create button.
+  `creatingFolder` collapses back to the link on a successful `Created`/`Existing` result.
+- A `close(then: () -> Unit = {})` local function hides the sheet (`sheetState.hide()`) before
+  calling `onDismiss()` and then `then()`, so the sheet visibly slides away instead of vanishing.
+  The primary action is now `HadithPrimaryButton("Done") { close() }` -- it makes no save/remove
+  decision of its own (every folder tap already committed one), it just closes the sheet, which is
+  R3-Q2's tap-to-save-plus-Done model. "Manage all bookmarks →" becomes
+  `TertiaryLink("Manage all bookmarks", trailingIcon = a chevron, onClick = { close(onManageBookmarks) })`
+  -- the literal "→" glyph is dropped in favour of the icon, per the spec.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 19s, first attempt (some fully-qualified references from the initial edit -- `PaddingValues`, `RoundedCornerShape`, `FontWeight.Medium`, `Color.Transparent` -- were cleaned up to proper imports via `sed` before this build, so the compiler never actually saw them; noting it since it's a style cleanup, not a compile fix).
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS (0 error-severity findings)
+- `testDebugUnitTest`: PASS, 105/105
+
+**Unspecified choices:** none -- every value traces to the spec's literal table.
+
+**NOT TESTED:** the sheet's hide-then-dismiss animation on Done/Manage-all-bookmarks, and
+`NewFolderField`'s autofocus-on-expand, are Compose-only behaviour -- device-pass items for the
+user, per this project's convention.
+
+**Blockers/questions:** none.
