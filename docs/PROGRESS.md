@@ -928,3 +928,42 @@ building blocks and confirms they compile.
 **NOT TESTED:** nothing yet exercises these components on screen (no wiring this step).
 
 **Blockers/questions:** none.
+
+### Step 28 -- Shell: lighter top bars, theme long-press menu, themed nav
+
+**Done:**
+- `ui/components/TopBar.kt`: `HadithTopBar` and `HadithBackTopBar` drop the bottom-hairline
+  `drawBehind`; both get `heightIn(min = 56.dp)`. `HadithTopBar`'s title drops from 17sp SemiBold
+  to 16sp Medium. `ThemeToggleButton` is now a 48dp `combinedClickable` circle: `onClick` still
+  flips light/dark via `onToggleTheme` (unchanged behaviour); `onLongClick` opens a `DropdownMenu`
+  with "Match system" / "Light" / "Dark", a check icon on whichever matches `theme`, calling
+  `onSetTheme`. Icon tint is now `colors.textSoft` at 20dp (was `colors.text`, default size).
+  `HadithTopBar` gained `theme: Theme` and `onSetTheme: (Theme) -> Unit` parameters.
+- `ui/nav/AppNav.kt`: `AppNav` gained `onSetTheme: (Theme) -> Unit`, threaded into `HadithTopBar`.
+  The bottom nav is wrapped in a `Column` with a 1dp `border` hairline above `NavigationBar`
+  (`containerColor = bg @ 0.94, tonalElevation = 0.dp`). The three `NavigationBarItem`s are
+  factored into one `TabItem(tab, selected, onClick)` `RowScope` composable, themed with
+  `NavigationBarItemDefaults.colors(selectedIconColor = accentInk, selectedTextColor = text,
+  indicatorColor = accentSoft, unselectedIconColor/unselectedTextColor = muted @ 0.70)`; icons are
+  22dp, labels 12sp (SemiBold when selected, else Medium). `AboutRoute`'s call site drops the
+  `theme = settings.theme` argument.
+- `MainActivity.kt`: passes `onSetTheme = { newTheme -> scope.launch { container.settingsRepository.setTheme(newTheme) } }` to `AppNav`.
+- `ui/about/AboutScreen.kt` (§A4/R3-Q1): deleted the Appearance `GroupPanel` block and the private
+  `ThemeSegmentedControl` composable entirely. `AboutRoute`/`AboutScreen` no longer take
+  `theme`/`onSetTheme`. Removed the now-orphaned `Theme` and `Color` imports.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 28s, first attempt.
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS
+- `testDebugUnitTest`: PASS, 105/105
+
+**Unspecified choices:** none beyond what the spec already pinned down literally.
+
+**NOT TESTED:** the long-press gesture itself (opens the menu, doesn't also fire the single-tap
+toggle) is Compose `combinedClickable` behaviour with no JVM-testable surface -- per this project's
+convention, this is a device-pass item for the user.
+
+**Blockers/questions:** none.
