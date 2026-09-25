@@ -1110,3 +1110,51 @@ second look on the user's own device pass, since it fixes an actual functional b
 predates this round's visual work.
 
 **Blockers/questions:** none.
+
+### Step 32 -- Folder detail: header block, overflow actions, card language
+
+**Done:**
+- §A1 verified: `FolderScreen.kt`'s Share-folder action (upload icon in the top bar, calling
+  `LibraryExport.buildDocument(repo, folderId)` -> cache file -> `ACTION_SEND` chooser) already
+  worked exactly as R0.6 describes. It is kept, unchanged in behaviour, moved to sit beside the new
+  overflow menu instead of beside separate pencil/bin buttons.
+- Top bar: `HadithBackTopBar(title = "", ...)` -- the folder name moves into the body's own header
+  block. The pencil and bin `IconButton`s are replaced by one `MoreVert` icon opening a
+  `DropdownMenu` with "Rename" and "Delete" (Delete in `colors.error`), matching the
+  Bookmarks-root `FolderRow` pattern.
+- `FolderDetailBody` gained a `folderName` param and a new header `item`: "FOLDER" eyebrow
+  (`sectionLabel`/`accentInk`), the name as `pageTitle` (2 lines max, ellipsised), then the count
+  line -- since the name is no longer shown in the top bar. The item list moved from a nested nested
+  `LazyColumn` (odd, since the outer `Column` already wasn't lazy) to items directly in the one
+  outer `LazyColumn`; a `Spacer(32.dp)` trailing item replaces the old `8.dp` one. The empty state is
+  now a `HadithCard` ("Nothing saved here yet." + a helper line) instead of a translucent
+  `HadithShapes.lg` box.
+- `BookmarkItemCard` is now a `HadithCard`. Its own hand-rolled ref-row + status-pill `Row` is
+  replaced by the shared `ReferenceSummary` (which also now surfaces the "View on Sunnah.com" link
+  here -- previously only in the footer's `FlowRow`). The 26dp rounded/bordered `Column` wrapper is
+  gone (the `HadithCard` supplies it).
+- The footer changed from a `FlowRow` of six-plus bare `FooterAction` text buttons to a
+  `SecondaryAction` row: "Show full"/"Show less" (only when `canExpand`, with a 350ms-rotating
+  chevron via `SecondaryAction`'s new `iconRotation` param), then a `Spacer(weight 1f)`, then Copy
+  (R3-Q3: local `copied` state -> "Copied" + check in `ActionTone.Accent` for 2000ms, replacing the
+  old `copyToClipboard`'s `Build.VERSION.SDK_INT <= S_V2` toast branch entirely), Share, and one
+  `MoreVert` overflow `IconButton` opening a `DropdownMenu` with "Move to…" (only when
+  `otherFolders.isNotEmpty()`, itself opening the existing folder-picker `DropdownMenu`) and "Remove
+  from folder" (`colors.error`) -- both keeping their existing toast/removal logic. `FooterAction`
+  is deleted; `copyToClipboard` drops its `toastState` parameter.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 21s, first attempt.
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS (0 error-severity findings)
+- `testDebugUnitTest`: PASS, 105/105
+
+**Unspecified choices:** none -- every value traces to the spec.
+
+**NOT TESTED:** the two nested `DropdownMenu`s sharing one `Box` (overflow, then the Move-to
+sub-list) render correctly one after the other rather than overlapping -- Compose layout behaviour,
+device-pass item for the user.
+
+**Blockers/questions:** none.
