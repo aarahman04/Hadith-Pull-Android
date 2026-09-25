@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -37,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -152,6 +156,7 @@ private fun FoldersScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = sidePadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,13 +170,14 @@ private fun FoldersScreen(
             Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
         }
         Spacer(Modifier.height(12.dp))
-        Text(text = "Bookmarks", style = typography.pageTitle, color = colors.text)
+        Text(text = "Bookmarks", style = typography.pageTitle, color = colors.text, textAlign = TextAlign.Center)
         if (windowWidthDp >= 720) {
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "Hadiths you've saved, organized into folders you name. Kept on this device only.",
                 style = typography.body,
                 color = colors.textSoft,
+                textAlign = TextAlign.Center,
             )
         }
         Spacer(Modifier.height(20.dp))
@@ -212,14 +218,23 @@ private fun FoldersScreen(
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = if (windowWidthDp < 720) GridCells.Fixed(1) else GridCells.Adaptive(220.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.fillMaxWidth(),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 720.dp)
+                    .background(colors.surfaceSolid, RoundedCornerShape(16.dp))
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
             ) {
-                items(folders, key = { it.id }) { folder ->
-                    FolderCard(folder = folder, onOpen = { onOpenFolder(folder.id) }, onRename = { onRename(folder) }, onDelete = { onDelete(folder) })
+                folders.forEachIndexed { index, folder ->
+                    FolderRow(
+                        folder = folder,
+                        onOpen = { onOpenFolder(folder.id) },
+                        onRename = { onRename(folder) },
+                        onDelete = { onDelete(folder) },
+                    )
+                    if (index < folders.lastIndex) {
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                    }
                 }
             }
         }
@@ -227,35 +242,67 @@ private fun FoldersScreen(
     }
 }
 
+/** §R1.5: replaces the old folder-card grid with one grouped-list row. */
 @Composable
-private fun FolderCard(folder: FolderSummary, onOpen: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun FolderRow(folder: FolderSummary, onOpen: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
-    Column(
+    var menuOpen by remember { mutableStateOf(false) }
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(26.dp))
-            .border(1.dp, colors.border, RoundedCornerShape(26.dp))
+            .heightIn(min = 72.dp)
             .clickable(onClick = onOpen)
-            .padding(vertical = 22.dp, horizontal = 21.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(colors.accentSoft, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            IconButton(onClick = onRename, modifier = Modifier.size(48.dp)) {
-                Icon(painter = painterResource(HadithIcons.pencil), contentDescription = "Rename", tint = colors.textSoft, modifier = Modifier.size(40.dp))
+            Icon(
+                painter = painterResource(HadithIcons.bookmarkFilled),
+                contentDescription = null,
+                tint = colors.accent,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = folder.name,
+                style = typography.panelTitle.copy(fontSize = 20.sp),
+                color = colors.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = if (folder.count == 1) "1 Hadith" else "${folder.count} Hadiths",
+                color = colors.muted,
+                fontSize = 13.sp,
+            )
+        }
+        Box {
+            IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = "Folder options",
+                    tint = colors.textSoft,
+                    modifier = Modifier.size(20.dp),
+                )
             }
-            IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
-                Icon(painter = painterResource(HadithIcons.bin), contentDescription = "Delete", tint = colors.textSoft, modifier = Modifier.size(40.dp))
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; onRename() })
+                DropdownMenuItem(text = { Text("Delete", color = colors.error) }, onClick = { menuOpen = false; onDelete() })
             }
         }
-        Text(text = folder.name, style = typography.panelTitle, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = if (folder.count == 1) "1 Hadith" else "${folder.count} Hadiths",
-            color = colors.muted,
-            fontSize = 13.6.sp,
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.muted,
+            modifier = Modifier.size(16.dp),
         )
     }
 }
