@@ -7,15 +7,20 @@ import online.hadithpull.app.data.BookmarkRepository
 /** R1.8/R0.6: builds one self-contained "Hadith Pull library" .html file -- readable and
  * searchable in any browser, and re-importable into the app via its embedded JSON block. */
 object LibraryExport {
+    // encodeDefaults = true: without it, kotlinx.serialization omits `format`/`version` because
+    // they equal their default values, so an exported file's embedded JSON would silently drop
+    // two fields the documented schema (R0.6) says are always present.
+    private val json = Json { encodeDefaults = true }
+
     suspend fun buildDocument(bookmarkRepository: BookmarkRepository, folderId: Long? = null): String {
         val folders = bookmarkRepository.exportSnapshot(folderId)
         val document = LibraryExportDocument(
             exportedAt = System.currentTimeMillis(),
             folders = folders.map { f -> LibraryExportFolder(f.name, f.items.map { LibraryExportItem(it.key) }) },
         )
-        val json = Json.encodeToString(document)
+        val jsonText = json.encodeToString(document)
         // </script> inside the embedded JSON would otherwise close the script block early.
-        val escapedJsonForScript = json.replace("</", "<\\/")
+        val escapedJsonForScript = jsonText.replace("</", "<\\/")
         val bodyHtml = LibraryHtmlTemplate.renderFoldersHtml(folders)
         return LibraryHtmlTemplate.SHELL
             .replace("__TITLE__", LibraryHtmlTemplate.htmlEscape("Hadith Pull: your saved narrations"))
