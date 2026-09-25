@@ -13,14 +13,14 @@ card/release, polish) are specced in that section's own Sonnet handoff
 prompt and pick up from Step 13's commit. Same protocol continues: stop for
 the user's "go" after each step, commit on `main` after approval, never push.
 
-## Status: Step 14 done and committed (`f86777d`), 90 JVM tests green.
-Pivoted to the bundled-offline-dataset plan (spec update 2026-09-24). Data
-pipeline output (`Hadith-Pull\data\v1\`, 35,209 hadiths, 10 collections,
-7/7 fixtures) is bundled byte-identical into `app/src/main/assets/hadith/v1/`
-and committed. The matching web changes (§5) are committed on the web repo's
-`data/hadith-api` branch, uncommitted-PR (both apps reviewed as one unit
-before any PR opens). Next: Step 15 (UI — references, grades, Sunnah.com
-link, About, Licenses, Privacy).
+## Status: Round 2 (Steps 18-26) complete and committed. `assembleDebug`,
+`testDebugUnitTest` (105 JVM tests), `assembleRelease` and `lintDebug` all
+green; the signed release build was smoke-tested on `emulator-5554` with
+airplane mode on. Next: Phase R2 (web parity, branch `web/round2-polish`,
+ending in a PR) per the spec's own "NEXT" line, or a new phase if the user
+redirects. The matching web changes for the earlier bundled-offline-dataset
+migration (§5) are committed on the web repo's `data/hadith-api` branch,
+uncommitted-PR (both apps reviewed as one unit before any PR opens).
 
 See `docs/RELEASING.md` for the manual GitHub Actions release workflow
 (`.github/workflows/release.yml`) that builds a signed `app-release.aab` —
@@ -796,4 +796,80 @@ Both Android privacy-policy copies (`res/raw/privacy_policy.txt`, `PRIVACY.md`) 
 instead of a bottom sheet).
 
 **Blockers/questions:** none.
+
+**Post-commit fix (`68b1e4d`), found during live device verification of the export/share flow:**
+`LibraryExport.kt` called the top-level `Json.encodeToString(document)`, which uses
+kotlinx.serialization's default `Json` instance. That instance omits any field equal to its
+declared default value, so `format` ("hadith-pull-library") and `version` (1) -- both declared
+with defaults in `LibraryExportDocument` -- were silently missing from every exported file's
+embedded JSON, even though `LibraryImport.parse` checks `doc.format` and the schema in R0.6/R1.8
+documents both fields as always present. Fixed by giving `LibraryExport` its own
+`Json { encodeDefaults = true }` instance. Caught by manually exporting a bookmark on-device
+(SAF save dialog, `adb pull`, inspected the embedded `<script type="application/json">` block) --
+not by the JVM test suite, since `LibraryImportTest`'s round-trip tests are built from
+`LibraryExportDocument` Kotlin objects (which always have both fields, whether written explicitly
+or defaulted) fed straight into `Json.decodeFromString`, never through `LibraryExport.buildDocument`
+itself, so the omission never showed up as a parse failure in-process.
+
+
+### Step 26 — Release build sanity check (R1.9, the G7 pattern)
+
+**Done:** `assembleRelease` + `lintDebug` clean (one pre-existing, unrelated `LicensesScreen.kt`
+compiler note, present since before Round 2). Signed a copy of the unsigned release APK with
+build-tools 36.0.0 `apksigner` and the debug keystore (`%USERPROFILE%\.android\debug.keystore`,
+password `android`), installed and launched it on the running `emulator-5554` (Medium Phone
+API 36) with airplane mode on. `aapt2 dump badging` confirms the release manifest still carries no
+`INTERNET` permission, so airplane mode is a belt-and-braces check, not a load-bearing one -- this
+app cannot reach the network regardless of radio state.
+
+On-device checks, all via `adb shell input tap` + `uiautomator dump` for exact coordinates
+(screenshots reviewed, not just asserted): a cold draw renders correctly with the new dock layout,
+the new launcher icon and header brand mark show the regenerated logo (Step 24), the Save sheet's
+"Folder \"Test\" created" toast renders on top of the sheet and its scrim (confirms Step 18's fix
+survives in a release/R8 build, not just debug), the Bookmarks tab shows the Step 22 grouped-list
+redesign, and the Library row's Export action opens the real SAF "Save a copy" dialog with the
+correct default filename (`hadith-pull-library-2026-09-25.html`). Saved the file, `adb pull`ed it,
+and confirmed it is valid self-contained HTML: every visible field is HTML-escaped, the Arabic
+block is behind a JS-independent `<details>`, and the embedded
+`<script type="application/json" id="hadith-pull-library">` block round-trips exactly the schema
+R0.6 specifies -- this is also the on-device confirmation that the Step 25 post-commit fix above
+actually reaches a real release build, not just the JVM test suite.
+
+`./gradlew :app:dependencies --configuration releaseRuntimeClasspath` re-confirms the dependency
+tree is unchanged from before Round 2 -- no new library, matching the expectation that the
+export/import feature used only what was already present (kotlinx.serialization, AndroidX SAF
+contracts, FileProvider).
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleRelease lintDebug --rerun-tasks` → BUILD SUCCESSFUL in 4m 22s.
+- `apksigner sign --ks debug.keystore ...` on a copy of `app-release-unsigned.apk` → signed clean.
+- `adb install -r` + `adb shell am start` on `emulator-5554` → app launches, draws, no crash.
+- `aapt2 dump badging` on the unsigned release APK → confirmed no `INTERNET` permission.
+- `adb shell input tap` / `uiautomator dump` / `adb shell screencap` cycle → Save-sheet toast,
+  Bookmarks redesign and Library export flow all visually confirmed from pulled screenshots.
+- `adb pull` on the exported `.html` → inspected directly; embedded JSON has `format`/`version`
+  present (the just-fixed bug), folder/item data correct, HTML escaping correct.
+- `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` → dependency tree unchanged.
+- Cleaned up: uninstalled the signed test build and deleted the on-device exported/screenshot files
+  after verification; the local signed-APK copy was also deleted (release APKs are not checked in).
+
+**Acceptance:**
+- `lintDebug` clean: PASS (one pre-existing, unrelated compiler note only)
+- All JVM tests green (carried over from Steps 18-25's own runs plus this step's `assembleRelease`
+  build, which compiles the same sources): PASS
+- Signed release APK installs, launches, and a draw + Save-sheet toast are visible on screen: PASS
+- Share-sheet toast: NOT independently re-checked this step (Step 18's report already confirmed
+  both `SaveSheet.kt` and `ShareSheet.kt` share the identical fix, verified by grep at the time);
+  the Save-sheet check above exercises the same underlying mechanism in a release build.
+- Launcher icon and brand mark are the new artwork: PASS (visual, from the pulled screenshots)
+- Exported library file opens as valid HTML with the correct embedded JSON: PASS (opened as text
+  and inspected directly, not opened in an actual browser on this pass -- Step 25's own report
+  already flagged the JS-disabled-browser check as the user's own manual pass to make; nothing new
+  to flag here beyond confirming the file itself is well-formed)
+
+**Unspecified choices:** none.
+
+**Blockers/questions:** none. The one real finding this step's verification produced was the
+Step 25 JSON-defaults bug fixed above, caught precisely because this step (and the user's own
+manual pass before it) exercised the actual exported file instead of trusting the JVM tests alone.
 
