@@ -52,11 +52,13 @@ import java.time.format.FormatStyle
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.FolderSummary
 import online.hadithpull.app.data.RenameFolderResult
+import online.hadithpull.app.data.library.LibraryExport
 import online.hadithpull.app.data.local.BookmarkEntity
 import online.hadithpull.app.data.local.FolderEntity
 import online.hadithpull.app.data.toHadith
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.domain.Hadith
+import online.hadithpull.app.share.writeLibraryToCache
 import online.hadithpull.app.ui.share.ShareRoute
 import online.hadithpull.app.domain.text.bookmarkExcerpt
 import online.hadithpull.app.domain.text.plainText
@@ -105,6 +107,21 @@ fun FolderRoute(container: AppContainer, darkTheme: Boolean, folderId: Long, onB
 
     Column(Modifier.fillMaxSize()) {
         HadithBackTopBar(title = currentFolder.name, onBack = onBack) {
+            IconButton(onClick = {
+                scope.launch {
+                    val html = LibraryExport.buildDocument(container.bookmarkRepository, folderId)
+                    val fileName = "hadith-pull-library-${currentFolder.name.take(40)}.html"
+                    val uri = writeLibraryToCache(context, html, fileName)
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/html"
+                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(android.content.Intent.createChooser(send, "Share folder"))
+                }
+            }) {
+                Icon(painterResource(HadithIcons.upload), contentDescription = "Share folder")
+            }
             IconButton(onClick = { renaming = true }) {
                 Icon(painterResource(HadithIcons.pencil), contentDescription = "Rename")
             }

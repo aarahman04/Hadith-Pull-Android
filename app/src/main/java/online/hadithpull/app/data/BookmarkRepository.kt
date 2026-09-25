@@ -3,6 +3,7 @@ package online.hadithpull.app.data
 import java.text.Collator
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -15,6 +16,16 @@ import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.text.jsTrim
 
 data class FolderSummary(val id: Long, val name: String, val count: Int, val createdAt: Long)
+
+/** R1.8: one folder's snapshot for export -- each item carries the decoded Hadith for the
+ * human-readable HTML, and its key for the embedded, import-trusted JSON. */
+data class ExportFolder(val name: String, val items: List<ExportItem>)
+data class ExportItem(val key: String, val hadith: Hadith)
+
+sealed interface EnsureSavedResult {
+    data object Added : EnsureSavedResult
+    data object AlreadyPresent : EnsureSavedResult
+}
 
 sealed interface CreateFolderResult {
     data class Created(val folder: FolderEntity) : CreateFolderResult
@@ -104,9 +115,33 @@ class BookmarkRepository(
         }
     }
 
-    /** Insert-or-ignore; never removes. Used by "create folder" inside the Save dialog (P4). */
-    suspend fun ensureSaved(folderId: Long, hadith: Hadith) {
-        bookmarkDao.insert(bookmarkEntityOf(folderId, hadith, System.currentTimeMillis()))
+    /** Insert-or-ignore; never removes. Used by "create folder" inside the Save dialog (P4) and
+     * by library import, which needs to tell a newly-added item from one already saved. */
+    suspend fun ensureSaved(folderId: Long, hadith: Hadith): EnsureSavedResult {
+        val rowId = bookmarkDao.insert(bookmarkEntityOf(folderId, hadith, System.currentTimeMillis()))
+        return if (rowId == -1L) EnsureSavedResult.AlreadyPresent else EnsureSavedResult.Added
+    }
+
+    /** R1.8: case-insensitive match-or-create, reusing createFolder's own lookup rather than
+     * duplicating the matching logic. Used by library import to merge into an existing folder. */
+    suspend fun ensureFolder(rawName: String): Long {
+        val name = validFolderName(rawName) ?: "Imported"
+        folderDao.findByNameIgnoreCase(name)?.let { return it.id }
+        return folderDao.insert(FolderEntity(name = name, createdAt = System.currentTimeMillis()))
+    }
+
+    /** R1.8: a snapshot for export -- all folders, or just one when `folderId` is given (the
+     * Folder-detail "Share folder" action). Folder order matches the Bookmarks tab's own list. */
+    suspend fun exportSnapshot(folderId: Long? = null): List<ExportFolder> {
+        val targetFolders = folders().first().let { all ->
+            if (folderId != null) all.filter { it.id == folderId } else all
+        }
+        return targetFolders.map { folder ->
+            val items = bookmarkDao.items(folder.id).first().map { entity ->
+                ExportItem(key = entity.hadithKey, hadith = entity.toHadith())
+            }
+            ExportFolder(name = folder.name, items = items)
+        }
     }
 
     suspend fun removeItem(itemId: Long) {

@@ -59,4 +59,21 @@ class HadithStoreTest {
             }
         }
     }
+
+    @Test
+    fun `resolve finds a real key from the bundled dataset and returns null for a well-formed but nonexistent one`() = runBlocking {
+        val index = store.index()
+        val collection = index.collections.first()
+        val firstShardRecords = store.get(collection.id, collection.shards.first())
+        val realRef = firstShardRecords.first().ref
+
+        val resolved = store.resolve("${collection.id}:$realRef")
+        assertTrue("resolve() didn't find a key known to exist in the bundled dataset", resolved != null)
+        assertEquals(realRef, resolved!!.ref)
+        assertEquals(collection.id, resolved.collection)
+
+        assertTrue("resolve() should return null for a nonexistent ref", store.resolve("${collection.id}:999999999") == null)
+        assertTrue("resolve() should return null for an unknown collection", store.resolve("not-a-real-collection:1") == null)
+        assertTrue("resolve() should return null for a malformed key with no ':'", store.resolve("nodelimiter") == null)
+    }
 }

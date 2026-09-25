@@ -109,3 +109,19 @@ class HadithStore(private val assets: AssetManager) : HadithSource {
     private fun readAsset(path: String): String =
         assets.open(path).bufferedReader().use { it.readText() }
 }
+
+/** R1.8: resolves a "{collection}:{ref}" key against the bundled dataset for library import --
+ * the only source of truth an import trusts, never the text carried in an imported file. Scans
+ * the collection's shards in order; import-time only, so an O(shards) scan needs no new index. */
+suspend fun HadithSource.resolve(key: String): Hadith? {
+    val sep = key.indexOf(':')
+    if (sep <= 0) return null
+    val collectionId = key.substring(0, sep)
+    val ref = key.substring(sep + 1)
+    val collectionInfo = index().collections.find { it.id == collectionId } ?: return null
+    for (shard in collectionInfo.shards) {
+        val match = get(collectionId, shard).find { it.ref == ref }
+        if (match != null) return match.toHadith(collectionId, collectionInfo.title)
+    }
+    return null
+}

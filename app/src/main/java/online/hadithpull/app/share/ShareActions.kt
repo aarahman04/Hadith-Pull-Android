@@ -34,6 +34,7 @@ fun cardFileName(book: String, number: String): String {
 
 private const val CACHE_CARDS_DIR = "cards"
 private const val CACHE_CLIP_DIR = "clip"
+private const val CACHE_LIBRARY_DIR = "library"
 
 private fun fileProviderUri(context: Context, file: File): Uri =
     FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -50,6 +51,17 @@ private fun writePngToCacheDir(context: Context, bitmap: Bitmap, fileName: Strin
 /** §3.4: cacheDir/cards/, emptied before each write. */
 suspend fun writeCardToCache(context: Context, bitmap: Bitmap, fileName: String): Uri =
     withContext(Dispatchers.IO) { writePngToCacheDir(context, bitmap, fileName, CACHE_CARDS_DIR) }
+
+/** R1.8: cacheDir/library/, emptied before each write, for sharing an exported library file. */
+suspend fun writeLibraryToCache(context: Context, html: String, fileName: String): Uri =
+    withContext(Dispatchers.IO) {
+        val dir = File(context.cacheDir, CACHE_LIBRARY_DIR)
+        dir.deleteRecursively()
+        dir.mkdirs()
+        val file = File(dir, fileName)
+        file.writeText(html)
+        fileProviderUri(context, file)
+    }
 
 /** Every image intent: stream + clipData (so the Android 10+ chooser shows a preview) + read permission. */
 private fun imageIntent(uri: Uri): Intent = Intent(Intent.ACTION_SEND).apply {

@@ -1,5 +1,9 @@
 package online.hadithpull.app.ui.bookmarks
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,11 +53,19 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import java.time.LocalDate
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.CreateFolderResult
 import online.hadithpull.app.data.FolderSummary
 import online.hadithpull.app.data.RenameFolderResult
+import online.hadithpull.app.data.library.LibraryExport
+import online.hadithpull.app.data.library.LibraryExportDocument
+import online.hadithpull.app.data.library.LibraryImport
+import online.hadithpull.app.data.library.ParseResult
+import online.hadithpull.app.data.library.applyImport
+import online.hadithpull.app.data.library.previewImport
 import online.hadithpull.app.di.AppContainer
+import online.hadithpull.app.share.writeLibraryToCache
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.LocalToastState
 import online.hadithpull.app.ui.theme.HadithShapes
@@ -103,6 +117,7 @@ fun FoldersRoute(
         onGoToReader = onGoToReader,
         onRename = { renameTarget = it },
         onDelete = { deleteTarget = it },
+        libraryContent = { LibrarySection(container) },
     )
 
     renameTarget?.let { target ->
@@ -146,6 +161,7 @@ private fun FoldersScreen(
     onGoToReader: () -> Unit,
     onRename: (FolderSummary) -> Unit,
     onDelete: (FolderSummary) -> Unit,
+    libraryContent: @Composable () -> Unit,
 ) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
@@ -239,6 +255,8 @@ private fun FoldersScreen(
             }
         }
         Spacer(Modifier.height(24.dp))
+        libraryContent()
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -303,6 +321,124 @@ private fun FolderRow(folder: FolderSummary, onOpen: () -> Unit, onRename: () ->
             contentDescription = null,
             tint = colors.muted,
             modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
+private fun libraryFileName(): String = "hadith-pull-library-${LocalDate.now()}.html"
+
+/** R1.8/R0.6: the "Library" entry point -- Export (SAF save), Share (chooser via FileProvider)
+ * and Import (SAF open, with a confirm dialog before writing and a summary after). */
+@Composable
+private fun LibrarySection(container: AppContainer) {
+    val colors = LocalHadithColors.current
+    val context = LocalContext.current
+    val toastState = LocalToastState.current
+    val scope = rememberCoroutineScope()
+
+    var expanded by remember { mutableStateOf(false) }
+    var pendingImport by remember { mutableStateOf<LibraryExportDocument?>(null) }
+    var importSummary by remember { mutableStateOf<String?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/html")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val html = LibraryExport.buildDocument(container.bookmarkRepository)
+            context.contentResolver.openOutputStream(uri)?.use { it.write(html.toByteArray()) }
+            toastState.show("Library exported")
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            when (val result = bytes?.let { LibraryImport.parse(it) }) {
+                is ParseResult.Ok -> pendingImport = result.document
+                ParseResult.NotALibraryFile, null -> toastState.show("This isn't a Hadith Pull library file.")
+                ParseResult.TooLarge -> toastState.show("This file is too large to import.")
+            }
+        }
+    }
+
+    Column(Modifier.fillMaxWidth().widthIn(max = 720.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.surfaceSolid, RoundedCornerShape(16.dp))
+                .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 16.dp)
+                .heightIn(min = 56.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Export, share or import your bookmarks",
+                color = colors.text,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        if (expanded) {
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TextButton(onClick = { exportLauncher.launch(libraryFileName()) }) { Text("Export") }
+                TextButton(onClick = {
+                    scope.launch {
+                        val html = LibraryExport.buildDocument(container.bookmarkRepository)
+                        val uri = writeLibraryToCache(context, html, libraryFileName())
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/html"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(send, "Share your library"))
+                    }
+                }) { Text("Share") }
+                TextButton(onClick = { importLauncher.launch(arrayOf("text/html")) }) { Text("Import") }
+            }
+        }
+    }
+
+    pendingImport?.let { doc ->
+        val preview = previewImport(doc)
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Import this library?") },
+            text = { Text("${preview.folderCount} folders, ${preview.itemCount} Hadiths.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        val summary = container.bookmarkRepository.applyImport(doc, container.hadithStore)
+                        pendingImport = null
+                        importSummary = buildString {
+                            append("Added ${summary.added} Hadith${if (summary.added == 1) "" else "s"} ")
+                            append("to ${summary.foldersTouched} folder${if (summary.foldersTouched == 1) "" else "s"}.")
+                            if (summary.alreadySaved > 0) {
+                                append(" ${summary.alreadySaved} ${if (summary.alreadySaved == 1) "was" else "were"} already saved.")
+                            }
+                            if (summary.notFound > 0) {
+                                append(" ${summary.notFound} couldn't be found in this version of the app.")
+                            }
+                        }
+                    }
+                }) { Text("Import") }
+            },
+            dismissButton = { TextButton(onClick = { pendingImport = null }) { Text("Cancel") } },
+        )
+    }
+
+    importSummary?.let { message ->
+        AlertDialog(
+            onDismissRequest = { importSummary = null },
+            title = { Text("Import complete") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { importSummary = null }) { Text("OK") } },
         )
     }
 }

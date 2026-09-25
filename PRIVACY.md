@@ -11,6 +11,8 @@ Hadith Pull is an Android app for reading hadith narrations. It has no accounts,
 
 **Sharing.** When you share, save or copy a hadith card, the app hands the image or text to the destination you choose (for example WhatsApp, Instagram, your photo gallery or the clipboard). What happens next is governed by that app's policies. On Android 8 and 9, saving a card asks for storage permission, which is used only to write that image.
 
+**Exporting your bookmarks.** If you export your bookmarks, the app creates a file that you choose where to save or whom to send it to. The app never uploads it anywhere.
+
 **Crash statistics.** If you have allowed your device to share usage and diagnostics with Google, Google may give the developer anonymous crash and performance statistics through Google Play Console. The app itself contains no crash-reporting code.
 
 **Children.** The app is suitable for a general audience and collects no data from anyone, including children.

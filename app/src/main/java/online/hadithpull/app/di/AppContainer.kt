@@ -15,7 +15,7 @@ import online.hadithpull.app.domain.DrawEngine
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
-    private val hadithStore = HadithStore(appContext.assets)
+    val hadithStore = HadithStore(appContext.assets)
     private val drawEngine = DrawEngine(hadithStore)
 
     val database: HadithPullDatabase = Room.databaseBuilder(
