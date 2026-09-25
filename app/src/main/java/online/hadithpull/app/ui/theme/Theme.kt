@@ -3,6 +3,7 @@ package online.hadithpull.app.ui.theme
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -12,6 +13,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import online.hadithpull.app.data.prefs.ArabicScript
 import online.hadithpull.app.data.prefs.TextSize
 
@@ -86,6 +88,11 @@ fun HadithTheme(
             primary = hadithColors.accent,
             outline = hadithColors.borderStrong,
             error = hadithColors.error,
+            surfaceContainer = hadithColors.bg,
+            secondaryContainer = hadithColors.accentSoft,
+            onSecondaryContainer = hadithColors.accentInk,
+            surfaceVariant = hadithColors.surfaceSolid,
+            onSurfaceVariant = hadithColors.muted,
         )
     } else {
         lightColorScheme(
@@ -96,6 +103,11 @@ fun HadithTheme(
             primary = hadithColors.accent,
             outline = hadithColors.borderStrong,
             error = hadithColors.error,
+            surfaceContainer = hadithColors.bg,
+            secondaryContainer = hadithColors.accentSoft,
+            onSecondaryContainer = hadithColors.accentInk,
+            surfaceVariant = hadithColors.surfaceSolid,
+            onSurfaceVariant = hadithColors.muted,
         )
     }
 
@@ -103,6 +115,35 @@ fun HadithTheme(
         LocalHadithColors provides hadithColors,
         LocalHadithTypography provides typography,
     ) {
-        MaterialTheme(colorScheme = colorScheme, shapes = hadithMaterialShapes, content = content)
+        MaterialTheme(
+            colorScheme = colorScheme,
+            shapes = hadithMaterialShapes,
+            typography = remember(inter) { interMaterialTypography(inter) },
+            content = content,
+        )
     }
+}
+
+/** Round 3 §0.5: every Material typography role uses Inter, so plain `Text` (buttons, rows,
+ * dialogs, nav labels, menus) renders in Inter instead of falling back to the M3 default
+ * (Roboto). */
+private fun interMaterialTypography(inter: FontFamily): Typography {
+    val base = Typography()
+    return Typography(
+        displayLarge = base.displayLarge.copy(fontFamily = inter),
+        displayMedium = base.displayMedium.copy(fontFamily = inter),
+        displaySmall = base.displaySmall.copy(fontFamily = inter),
+        headlineLarge = base.headlineLarge.copy(fontFamily = inter),
+        headlineMedium = base.headlineMedium.copy(fontFamily = inter),
+        headlineSmall = base.headlineSmall.copy(fontFamily = inter),
+        titleLarge = base.titleLarge.copy(fontFamily = inter),
+        titleMedium = base.titleMedium.copy(fontFamily = inter),
+        titleSmall = base.titleSmall.copy(fontFamily = inter),
+        bodyLarge = base.bodyLarge.copy(fontFamily = inter),
+        bodyMedium = base.bodyMedium.copy(fontFamily = inter),
+        bodySmall = base.bodySmall.copy(fontFamily = inter),
+        labelLarge = base.labelLarge.copy(fontFamily = inter),
+        labelMedium = base.labelMedium.copy(fontFamily = inter),
+        labelSmall = base.labelSmall.copy(fontFamily = inter),
+    )
 }

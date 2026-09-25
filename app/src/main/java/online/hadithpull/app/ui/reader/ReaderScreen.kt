@@ -3,9 +3,7 @@ package online.hadithpull.app.ui.reader
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -58,7 +56,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +76,7 @@ import online.hadithpull.app.domain.text.wordCount
 import online.hadithpull.app.domain.text.PAGE_EXCERPT
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.StatusPill
+import online.hadithpull.app.ui.components.shimmerColor
 import online.hadithpull.app.ui.theme.HadithColors
 import online.hadithpull.app.ui.theme.HadithShapes
 import online.hadithpull.app.ui.theme.HadithTypography
@@ -368,22 +366,6 @@ private fun NarrationBlock(
             is ReaderUiState.Failure -> FailureBlock()
         }
     }
-}
-
-@Composable
-private fun shimmerColor(): Color {
-    val colors = LocalHadithColors.current
-    val transition = rememberInfiniteTransition(label = "skeleton")
-    val shimmer by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "shimmer",
-    )
-    return lerp(colors.border, colors.borderStrong, shimmer)
 }
 
 @Composable
