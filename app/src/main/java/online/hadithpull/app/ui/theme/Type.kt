@@ -18,13 +18,16 @@ data class HadithTypography(
     val eyebrow: TextStyle,
     val english: TextStyle,
     val arabic: TextStyle,
-    val narrator: TextStyle,
     val placeholder: TextStyle,
     val sectionLabel: TextStyle,
     val sheetTitle: TextStyle,
     val pageTitle: TextStyle,
     val panelTitle: TextStyle,
     val body: TextStyle,
+    val contentMeta: TextStyle,
+    val contentMetaItalic: TextStyle,
+    val secondaryScaled: TextStyle,
+    val label: TextStyle,
 )
 
 /**
@@ -46,7 +49,8 @@ fun hadithTypography(
     val heroSize = if (w < 720) clamp(28f, 0.08f * w, 36.8f) else clamp(33.6f, 0.06f * w, 54.4f)
     val englishSize = (if (w < 400) 18.9f else clamp(20.8f, 0.033f * w, 27.2f)) * readingScale
     val englishLineHeight = if (w < 400) 1.75f else 1.78f
-    val arabicSize = clamp(24f, 0.044f * w, 33.6f) * readingScale * arabicScale
+    // R-Q3: Arabic equals the English size times the script's arabicScale factor -- no separate base.
+    val arabicSize = englishSize * arabicScale
 
     return HadithTypography(
         heroTitle = TextStyle(
@@ -76,13 +80,6 @@ fun hadithTypography(
             fontFamily = arabicFamily,
             fontSize = arabicSize.sp,
             lineHeight = arabicLineHeight.em,
-            platformStyle = noFontPadding,
-        ),
-        narrator = TextStyle(
-            fontFamily = inter,
-            fontWeight = FontWeight.Normal,
-            fontStyle = FontStyle.Italic,
-            fontSize = 15.2.sp,
             platformStyle = noFontPadding,
         ),
         placeholder = TextStyle(
@@ -122,6 +119,34 @@ fun hadithTypography(
             fontWeight = FontWeight.Normal,
             fontSize = 16.3.sp,
             lineHeight = 1.75.em,
+            platformStyle = noFontPadding,
+        ),
+        contentMeta = TextStyle(
+            fontFamily = inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = (15f * readingScale).sp,
+            lineHeight = 1.4.em,
+            platformStyle = noFontPadding,
+        ),
+        contentMetaItalic = TextStyle(
+            fontFamily = inter,
+            fontWeight = FontWeight.Normal,
+            fontStyle = FontStyle.Italic,
+            fontSize = (15f * readingScale).sp,
+            lineHeight = 1.5.em,
+            platformStyle = noFontPadding,
+        ),
+        secondaryScaled = TextStyle(
+            fontFamily = inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = (13f * readingScale).sp,
+            platformStyle = noFontPadding,
+        ),
+        label = TextStyle(
+            fontFamily = inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = (11.5f * readingScale).sp,
+            letterSpacing = 0.07.em,
             platformStyle = noFontPadding,
         ),
     )

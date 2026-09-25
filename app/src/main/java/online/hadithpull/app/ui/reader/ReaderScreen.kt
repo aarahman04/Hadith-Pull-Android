@@ -56,7 +56,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
@@ -127,7 +126,7 @@ fun ReaderScreen(
                 Spacer(Modifier.height(20.dp))
                 ReadingBar(
                     windowWidthDp = windowWidthDp,
-                    showScriptToggle = (uiState as? ReaderUiState.Loaded)?.hadith?.arabic?.isNotEmpty() == true,
+                    showScriptToggle = (uiState as? ReaderUiState.Loaded)?.let { it.expanded && hasArabicWorthShowing(it.hadith.arabic) } == true,
                     arabicScript = arabicScript,
                     textSize = textSize,
                     onSetArabicScript = onSetArabicScript,
@@ -201,7 +200,11 @@ private fun ReadingBar(
     onSetArabicScript: (ArabicScript) -> Unit,
     onCycleTextSize: () -> Unit,
 ) {
-    val arrangement = if (windowWidthDp < 720) Arrangement.Center else Arrangement.End
+    val arrangement = if (showScriptToggle) {
+        if (windowWidthDp < 720) Arrangement.Center else Arrangement.End
+    } else {
+        Arrangement.Center
+    }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = arrangement) {
         if (showScriptToggle) {
             ScriptToggle(arabicScript, onSetArabicScript)
@@ -391,7 +394,7 @@ private fun LoadedNarrationContent(
 
         if (hadith.narrator.isNotEmpty()) {
             Spacer(Modifier.height(22.dp))
-            Text(text = hadith.narrator, style = typography.narrator, color = colors.muted, fontStyle = FontStyle.Italic)
+            Text(text = hadith.narrator, style = typography.contentMetaItalic, color = colors.muted)
         }
 
         val showExpandButton = pageExcerpt != null || hasArabic
@@ -473,6 +476,7 @@ private fun ExpandToggle(expanded: Boolean, hasExcerpt: Boolean, hasArabic: Bool
 @Composable
 private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
     val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -488,12 +492,11 @@ private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
             Column {
                 Text(
                     text = "${hadith.collectionTitle}  ·  Hadith ${hadith.ref}",
+                    style = typography.contentMeta,
                     color = colors.text,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
                 )
                 if (hadith.chapter.isNotEmpty()) {
-                    Text(text = hadith.chapter, color = colors.muted, fontSize = 14.sp)
+                    Text(text = hadith.chapter, style = typography.secondaryScaled, color = colors.muted)
                 }
             }
             StatusPill(primary = hadith.primary, darkTheme = darkTheme)
@@ -504,6 +507,7 @@ private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
 @Composable
 private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
     val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
     val windowWidthDp = LocalConfiguration.current.screenWidthDp
     Column(
         Modifier
@@ -535,8 +539,8 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
         if (hadith.chapter.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             Column(Modifier.fillMaxWidth()) {
-                Text(text = "CHAPTER", color = colors.muted, fontSize = 11.8.sp, fontWeight = FontWeight.SemiBold)
-                Text(text = hadith.chapter, color = colors.text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text(text = "CHAPTER", style = typography.label, color = colors.muted)
+                Text(text = hadith.chapter, style = typography.contentMeta, color = colors.text)
             }
         }
         if (hadith.book != null && hadith.inBook != null) {
@@ -548,22 +552,20 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
         if (consensus || grades.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             Column(Modifier.fillMaxWidth()) {
-                Text(text = "GRADES", color = colors.muted, fontSize = 11.8.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = "GRADES", style = typography.label, color = colors.muted)
                 Spacer(Modifier.height(4.dp))
                 if (consensus) {
                     Text(
                         text = "Accepted as sahih by scholarly consensus",
+                        style = typography.contentMeta,
                         color = colors.text,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
                     )
                 } else {
                     grades.forEach { grade ->
                         Text(
                             text = "${grade.by}: ${grade.grade}",
+                            style = typography.contentMeta,
                             color = colors.text,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
@@ -575,9 +577,10 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
 @Composable
 private fun ReferenceField(label: String, value: String, modifier: Modifier = Modifier) {
     val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
     Column(modifier) {
-        Text(text = label, color = colors.muted, fontSize = 11.8.sp, fontWeight = FontWeight.SemiBold)
-        Text(text = value, color = colors.text, fontSize = 17.3.sp, fontWeight = FontWeight.SemiBold, lineHeight = 24.sp)
+        Text(text = label, style = typography.label, color = colors.muted)
+        Text(text = value, style = typography.contentMeta, color = colors.text)
     }
 }
 
