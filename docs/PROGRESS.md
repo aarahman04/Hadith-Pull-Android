@@ -489,3 +489,48 @@ web's).
 
 **Blockers/questions:** none.
 
+
+### Step 20 — Typography tiers, Arabic sizing, reading-bar visibility
+
+**Done:** `Type.kt`'s Arabic size formula now reuses `englishSize` (already
+scaled by the reading-scale preference) times the script's `arabicScale`
+factor, deleting the separate `clamp(24, 0.044w, 33.6)` base (R-Q3). Four
+new `HadithTypography` roles were added -- `contentMeta` (15sp·scale, Inter
+600, line-height 1.4), `contentMetaItalic` (same but italic/regular
+weight, line-height 1.5), `secondaryScaled` (13sp·scale, Inter 400) and
+`label` (11.5sp·scale, Inter 600, tracking 0.07em) -- and wired at every
+call site the spec's table names: the brief reference's main line and
+chapter line, every `ReferenceField` label/value pair, the full
+reference's chapter value and grade rows, and the narrator line (which now
+uses `contentMetaItalic` in place of the old fixed-size `narrator` style).
+The now-unused `narrator` `TextStyle` field was removed from
+`HadithTypography` as a Simplicity-First cleanup, along with the
+`FontStyle` import in `ReaderScreen.kt` that only its old call site needed
+(`placeholder` still uses `FontStyle` inside `Type.kt` itself, so the
+import stays there).
+
+The script toggle's visibility condition changed from "the hadith has any
+Arabic text" to `expanded && hasArabicWorthShowing(arabic)` -- it now
+tracks whether Arabic is actually on screen, not just present. `ReadingBar`
+centres the text-size chip at every width when the toggle is hidden; when
+shown, it keeps the existing phone-centred / ≥720dp-end-aligned split.
+
+Fixed-size controls (the "Aa" chip, script-toggle labels, the expand
+toggle, the Sunnah link, the quiet-actions labels) and the fixed secondary
+tier (attribution, About's footer) were left untouched, per the spec --
+they don't scale with the reading-scale setting by design.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` → BUILD SUCCESSFUL in 20s, all tests green.
+
+**Acceptance:**
+- `assembleDebug` + `testDebugUnitTest` pass: PASS
+- The four new typography roles exist and are wired at every call site in the spec's table: PASS
+- The Arabic size formula no longer has its own clamp: PASS
+- The script toggle's visibility condition matches `expanded && hasArabicWorthShowing(arabic)` exactly: PASS
+- Compose-only logic (the two visibility conditions) has no JVM test, as the spec anticipated -- NOT TESTED by an automated test; verified by reading the composable.
+
+**Unspecified choices:** none.
+
+**Blockers/questions:** none.
+
