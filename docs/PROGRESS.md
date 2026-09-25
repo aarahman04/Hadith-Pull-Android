@@ -967,3 +967,56 @@ toggle) is Compose `combinedClickable` behaviour with no JVM-testable surface --
 convention, this is a device-pass item for the user.
 
 **Blockers/questions:** none.
+
+### Step 29 -- Reader: attribution removed, shared design system wired in
+
+**Done:**
+- §A2: deleted `AttributionLine`, the `item("attrib")` list entry, and the `onOpenAttribution`
+  parameter from `ReaderScreen`, `ReaderContentList` and `ReaderRoute`'s call site. "Texts via
+  Hadith API" no longer appears in the Reader (it stays in About's Sources section).
+- Hero replaced with the shared `ScreenHero("HADITH OF THE MOMENT", "Read. Reflect. Remember.",
+  typography.heroTitle, subline)`; the private `Hero` composable is deleted. Rhythm now uses
+  `HadithSpacing.xl`/`.xxl` at the top-level gaps the spec named.
+- `ScriptToggle` + `TextSizeChip` collapsed into one `ReadingModeControl`: a single 40dp segmented
+  pill (`surfaceSolid` fill, 1dp `border`), script segments only rendered when
+  `expanded && hasArabicWorthShowing` (unchanged condition), a 1dp `borderStrong` divider, then the
+  "Aa" + text-size label segment (label hidden when the script segments are showing, so the pill
+  doesn't get crowded). `ReadingBar` is now a thin wrapper that always centres the control -- the
+  old ≥720dp End-alignment branch is gone, since the control's own internal layout is unaffected by
+  width.
+- The dock's reference block is now `HadithCard { ReferenceSummary(...) }`, replacing the two
+  hand-rolled Row A/Row B blocks; the private `SunnahLink` composable is deleted (`ReferenceSummary`
+  owns the link, including the height-stable alpha-0 fallback).
+- `PrimaryButton` now renders through `HadithPrimaryButton`, keeping its existing label/spinner
+  logic as the `leadingIcon` slot's rotation.
+- `QuietActionsRow` now renders three `SecondaryAction`s (`Arrangement.SpaceEvenly`, min 44dp
+  height) instead of `QuietAction`/`Divider14`, which are deleted. R3-Q3: Copy is now a local
+  `copied` state that shows "Copied" + a check icon in `ActionTone.Accent` for 2000ms
+  (`LaunchedEffect(copied) { delay(2000); copied = false }`), reset immediately on `hadith?.key`
+  changing so a new draw doesn't carry over a stale "Copied" state; `liveLabel = true` marks it as
+  an accessibility live region. Save/Share keep their existing enabled/accent logic through the
+  same component.
+- `FullReference`'s card fill changed from the tinted `refBg` to the shared `surfaceSolid` +
+  16dp-padding language; its "REFERENCE" header now uses `typography.sectionLabel` instead of a
+  literal 11.5sp Bold.
+- `ReaderRoute.copyToClipboard` dropped its parameter list to just `(context, hadith)` -- the
+  `Build.VERSION.SDK_INT <= S_V2` branch, the toast, and the `Build` import are gone, since the
+  inline "Copied" state above is the only confirmation now, on every API level.
+
+**Commands run:**
+- First `assembleDebug`: FAILED -- `Unresolved reference 'HadithSpacing'` (used in
+  `ReaderScreen.kt` before importing it from `ui.theme`). Fixed by adding the import.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 23s.
+
+**Acceptance:**
+- Compiles: PASS
+- `lintDebug`: PASS (0 error-severity findings)
+- `testDebugUnitTest`: PASS, 105/105
+
+**Unspecified choices:** none -- every value here traces to a literal in the spec.
+
+**NOT TESTED:** the "Copied" 2000ms revert timing and the ReadingModeControl's segmented-pill
+layout at various widths are Compose-only behaviour with no JVM-testable surface -- device-pass
+items for the user, per this project's convention.
+
+**Blockers/questions:** none.
