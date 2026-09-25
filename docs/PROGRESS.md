@@ -590,3 +590,43 @@ are both gone from the file.
 
 **Blockers/questions:** none. (One self-corrected build error, not a spec ambiguity -- noted above for the record.)
 
+
+### Step 22 — Bookmarks redesign: one grouped list instead of a card grid
+
+**Done:** `FoldersScreen.kt`'s `LazyVerticalGrid` of bordered `FolderCard`s
+is replaced by a single bordered/rounded surface holding a plain `Column`
+of `FolderRow`s with hairline dividers between them (folder counts are
+small, so a plain `Column` was used rather than `LazyColumn`, matching the
+existing Save-sheet folder list's own pattern). Each row: a 40dp
+`accentSoft` leading tile with a filled bookmark glyph, the folder name
+(Cormorant 600, 20sp) over its count, a ⋮ overflow button opening a
+`DropdownMenu` with Rename and Delete (Delete text in the `error` colour),
+and a trailing chevron. The header block (eyebrow, "Bookmarks" title, the
+≥720dp subline) and the create row are now centred, matching the Reader
+hero's treatment.
+
+**Deviation from the spec's literal code, flagged:** the spec's sample used
+`Icons.Filled.ChevronRight`. This project depends on
+`androidx.compose.material:material-icons-core` only (not `-extended`),
+and `ChevronRight` lives in the extended set -- the first build failed
+with `Unresolved reference 'ChevronRight'`. Used
+`Icons.AutoMirrored.Filled.KeyboardArrowRight` instead (the core set's
+equivalent glyph, and the RTL-aware variant rather than the deprecated
+non-mirrored one, which triggered its own compiler warning on the first
+attempt). `Icons.Filled.MoreVert` compiled as specified -- it is in core.
+
+**Commands run:**
+- First `assembleDebug`: FAILED -- `Unresolved reference 'ChevronRight'` at two call sites. Fixed by switching to `Icons.Filled.KeyboardArrowRight`.
+- Second `assembleDebug`: BUILD SUCCESSFUL, but with a deprecation warning on `Icons.Filled.KeyboardArrowRight` ("Use the AutoMirrored version"). Fixed by switching to `Icons.AutoMirrored.Filled.KeyboardArrowRight`.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` → BUILD SUCCESSFUL in 13s, clean (no warnings), all tests green.
+
+**Acceptance:**
+- `assembleDebug` + `testDebugUnitTest` pass: PASS
+- The folder list renders as one bordered surface with hairline dividers, not a grid: PASS
+- Each row is ≥72dp with a 40dp accent-soft leading tile, name, count, a ⋮ menu (Rename/Delete, Delete in error colour), and a trailing chevron: PASS
+- Eyebrow, title, subline and create row are centred: PASS
+
+**Unspecified choices:** the chevron icon substitution above (forced by the project's dependency set, not a free choice); worth a glance to confirm the glyph reads the same as a true chevron at 16dp (KeyboardArrowRight is visually a thinner caret, not a chevron -- close enough at this size, but flagging since the spec named a specific icon).
+
+**Blockers/questions:** none -- both issues were mechanical (a missing-icon compile error and a deprecation warning), not spec ambiguity, and were self-corrected within the step.
+
