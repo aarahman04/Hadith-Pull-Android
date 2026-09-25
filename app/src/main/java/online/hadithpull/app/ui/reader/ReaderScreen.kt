@@ -1,6 +1,7 @@
 package online.hadithpull.app.ui.reader
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -15,10 +16,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,9 +31,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Refresh
@@ -43,14 +45,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -59,6 +64,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -79,6 +85,10 @@ import online.hadithpull.app.ui.theme.HadithTypography
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
 
+/** R0.3/R1.4: the fixed dock (reference + Sunnah link + New Hadith + quiet actions) needs at
+ * least this much room below the scrolling content before it takes over the whole screen. */
+private val DOCKED_MODE_MIN_HEIGHT = 480.dp
+
 @Composable
 fun ReaderScreen(
     uiState: ReaderUiState,
@@ -96,63 +106,144 @@ fun ReaderScreen(
     onOpenAttribution: () -> Unit,
     onOpenSunnah: (String) -> Unit,
 ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val docked = maxHeight >= DOCKED_MODE_MIN_HEIGHT
+        val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+
+        // R0.3: scroll to top on every draw after the first one in this process.
+        var hasShownAResult by remember { mutableStateOf(false) }
+        LaunchedEffect(uiState) {
+            if (uiState !is ReaderUiState.Loading) {
+                hasShownAResult = true
+            } else if (hasShownAResult) {
+                listState.scrollToItem(0)
+            }
+        }
+
+        // R0.3: expand/collapse scrolls so the sticky reading bar pins and the narration starts
+        // directly under it, replacing the old bringIntoView behaviour.
+        val onToggleExpandWithScroll: () -> Unit = {
+            onToggleExpand()
+            scope.launch {
+                withFrameNanos { }
+                listState.animateScrollToItem(1)
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (docked) {
+                Box(Modifier.weight(1f).widthIn(max = 780.dp).fillMaxWidth()) {
+                    ReaderContentList(
+                        listState = listState,
+                        uiState = uiState,
+                        darkTheme = darkTheme,
+                        arabicScript = arabicScript,
+                        textSize = textSize,
+                        onSetArabicScript = onSetArabicScript,
+                        onCycleTextSize = onCycleTextSize,
+                        onToggleExpand = onToggleExpandWithScroll,
+                        onOpenAttribution = onOpenAttribution,
+                    )
+                }
+                ReaderDock(
+                    uiState = uiState,
+                    darkTheme = darkTheme,
+                    isSaved = isSaved,
+                    onDraw = onDraw,
+                    onCopy = onCopy,
+                    onOpenSave = onOpenSave,
+                    onOpenShare = onOpenShare,
+                    onOpenSunnah = onOpenSunnah,
+                )
+            } else {
+                Box(Modifier.weight(1f).widthIn(max = 780.dp).fillMaxWidth()) {
+                    ReaderContentList(
+                        listState = listState,
+                        uiState = uiState,
+                        darkTheme = darkTheme,
+                        arabicScript = arabicScript,
+                        textSize = textSize,
+                        onSetArabicScript = onSetArabicScript,
+                        onCycleTextSize = onCycleTextSize,
+                        onToggleExpand = onToggleExpandWithScroll,
+                        onOpenAttribution = onOpenAttribution,
+                        trailingDockContent = {
+                            ReaderDockContent(
+                                uiState = uiState,
+                                darkTheme = darkTheme,
+                                isSaved = isSaved,
+                                onDraw = onDraw,
+                                onCopy = onCopy,
+                                onOpenSave = onOpenSave,
+                                onOpenShare = onOpenShare,
+                                onOpenSunnah = onOpenSunnah,
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** R1.4: the ONLY scrolling region -- hero, a sticky reading bar, the narration, and (docked
+ * mode only) the attribution line. In stacked mode `trailingDockContent` appends the dock's own
+ * content as an ordinary last item instead of a fixed sibling. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ReaderContentList(
+    listState: LazyListState,
+    uiState: ReaderUiState,
+    darkTheme: Boolean,
+    arabicScript: ArabicScript,
+    textSize: TextSize,
+    onSetArabicScript: (ArabicScript) -> Unit,
+    onCycleTextSize: () -> Unit,
+    onToggleExpand: () -> Unit,
+    onOpenAttribution: () -> Unit,
+    trailingDockContent: (@Composable () -> Unit)? = null,
+) {
     val colors = LocalHadithColors.current
     val windowWidthDp = LocalConfiguration.current.screenWidthDp
     val sidePadding = if (windowWidthDp < 720) 16.dp else 20.dp
-    val scrollState = rememberScrollState()
-    val narrationBringIntoView = remember { BringIntoViewRequester() }
-    val scope = rememberCoroutineScope()
+    val showScriptToggle = (uiState as? ReaderUiState.Loaded)
+        ?.let { it.expanded && hasArabicWorthShowing(it.hadith.arabic) } == true
+    val barAtTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
+    val barBackground by animateColorAsState(
+        targetValue = if (barAtTop) Color.Transparent else colors.bg.copy(alpha = 0.92f),
+        label = "readingBarBg",
+    )
 
-    // §2.2: after any draw except the first in this process, animate the scroll to 0.
-    var hasShownAResult by remember { mutableStateOf(false) }
-    LaunchedEffect(uiState) {
-        if (uiState !is ReaderUiState.Loading) {
-            if (hasShownAResult) scrollState.animateScrollTo(0)
-            hasShownAResult = true
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = sidePadding),
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize().padding(horizontal = sidePadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(24.dp))
-        Box(Modifier.widthIn(max = 780.dp).fillMaxWidth()) {
-            Column {
-                Hero(windowWidthDp)
-                Spacer(Modifier.height(20.dp))
-                ReadingBar(
-                    windowWidthDp = windowWidthDp,
-                    showScriptToggle = (uiState as? ReaderUiState.Loaded)?.let { it.expanded && hasArabicWorthShowing(it.hadith.arabic) } == true,
-                    arabicScript = arabicScript,
-                    textSize = textSize,
-                    onSetArabicScript = onSetArabicScript,
-                    onCycleTextSize = onCycleTextSize,
-                )
-                Spacer(Modifier.height(24.dp))
-                NarrationBlock(
-                    uiState = uiState,
-                    darkTheme = darkTheme,
-                    windowWidthDp = windowWidthDp,
-                    modifier = Modifier.bringIntoViewRequester(narrationBringIntoView),
-                    onToggleExpand = {
-                        onToggleExpand()
-                        // §2.2: if the narration block's top is above the viewport, scroll it into view.
-                        scope.launch { narrationBringIntoView.bringIntoView() }
-                    },
-                    onOpenSunnah = onOpenSunnah,
-                )
-                Spacer(Modifier.height(20.dp))
-                PrimaryButton(uiState = uiState, onDraw = onDraw)
-                Spacer(Modifier.height(16.dp))
-                QuietActionsRow(uiState = uiState, isSaved = isSaved, onCopy = onCopy, onOpenSave = onOpenSave, onOpenShare = onOpenShare)
-                Spacer(Modifier.height(20.dp))
-                AttributionLine(onClick = onOpenAttribution)
-                Spacer(Modifier.height(24.dp))
+        item("hero") {
+            Spacer(Modifier.height(24.dp))
+            Hero(windowWidthDp)
+            Spacer(Modifier.height(20.dp))
+        }
+        stickyHeader("bar") {
+            Box(Modifier.fillMaxWidth().background(barBackground).padding(vertical = 8.dp)) {
+                ReadingBar(windowWidthDp, showScriptToggle, arabicScript, textSize, onSetArabicScript, onCycleTextSize)
             }
+        }
+        item("narration") {
+            Spacer(Modifier.height(24.dp))
+            NarrationBlock(uiState, darkTheme, windowWidthDp, onToggleExpand)
+            Spacer(Modifier.height(20.dp))
+        }
+        item("attrib") {
+            AttributionLine(onClick = onOpenAttribution)
+            Spacer(Modifier.height(24.dp))
+        }
+        if (trailingDockContent != null) {
+            item("dock") { trailingDockContent() }
         }
     }
 }
@@ -269,20 +360,18 @@ private fun NarrationBlock(
     darkTheme: Boolean,
     windowWidthDp: Int,
     onToggleExpand: () -> Unit,
-    onOpenSunnah: (String) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Box(modifier) {
+    Box(Modifier.fillMaxWidth()) {
         when (uiState) {
             is ReaderUiState.Loading -> SkeletonBlock()
-            is ReaderUiState.Loaded -> LoadedNarration(uiState, darkTheme, windowWidthDp, onToggleExpand, onOpenSunnah)
+            is ReaderUiState.Loaded -> LoadedNarration(uiState, darkTheme, windowWidthDp, onToggleExpand)
             is ReaderUiState.Failure -> FailureBlock()
         }
     }
 }
 
 @Composable
-private fun SkeletonBlock() {
+private fun shimmerColor(): Color {
     val colors = LocalHadithColors.current
     val transition = rememberInfiniteTransition(label = "skeleton")
     val shimmer by transition.animateFloat(
@@ -294,7 +383,12 @@ private fun SkeletonBlock() {
         ),
         label = "shimmer",
     )
-    val barColor = lerp(colors.border, colors.borderStrong, shimmer)
+    return lerp(colors.border, colors.borderStrong, shimmer)
+}
+
+@Composable
+private fun SkeletonBlock() {
+    val barColor = shimmerColor()
     val widths = listOf(1f, 0.92f, 0.97f, 0.68f)
     Column(Modifier.fillMaxWidth()) {
         widths.forEachIndexed { index, w ->
@@ -315,7 +409,6 @@ private fun LoadedNarration(
     darkTheme: Boolean,
     windowWidthDp: Int,
     onToggleExpand: () -> Unit,
-    onOpenSunnah: (String) -> Unit,
 ) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
@@ -325,7 +418,7 @@ private fun LoadedNarration(
 
     Box(Modifier.fillMaxWidth()) {
         QuoteMark(expanded = state.expanded, windowWidthDp = windowWidthDp)
-        LoadedNarrationContent(state, hadith, pageExcerpt, hasArabic, colors, typography, darkTheme, onToggleExpand, onOpenSunnah)
+        LoadedNarrationContent(state, hadith, pageExcerpt, hasArabic, colors, typography, darkTheme, onToggleExpand)
     }
 }
 
@@ -346,6 +439,9 @@ private fun QuoteMark(expanded: Boolean, windowWidthDp: Int) {
     )
 }
 
+/** R1.4: the reference block and Sunnah link no longer render here -- they moved into the
+ * ReaderDock. This composable now stops after the expand toggle, with FullReference still shown
+ * inline (in the scrolling list) when expanded, per R0.3. */
 @Composable
 private fun LoadedNarrationContent(
     state: ReaderUiState.Loaded,
@@ -356,7 +452,6 @@ private fun LoadedNarrationContent(
     typography: HadithTypography,
     darkTheme: Boolean,
     onToggleExpand: () -> Unit,
-    onOpenSunnah: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         AnimatedVisibility(visible = state.expanded && hasArabic, enter = expandVertically() + fadeIn(tween(500))) {
@@ -409,25 +504,26 @@ private fun LoadedNarrationContent(
             )
         }
 
-        Spacer(Modifier.height(24.dp))
         if (state.expanded) {
+            Spacer(Modifier.height(24.dp))
             FullReference(hadith, darkTheme)
-        } else {
-            BriefReference(hadith, darkTheme)
         }
-        SunnahLink(sunnahUrl = hadith.sunnahUrl, onOpen = onOpenSunnah)
     }
 }
 
-/** H11: quiet text link, trailing open-in-new icon (§2.2 quiet style). Hidden when sunnahUrl is null. */
+/** H11: quiet text link, trailing open-in-new icon (§2.2 quiet style). With
+ * `keepSpaceWhenHidden`, a null `sunnahUrl` renders the same row at alpha 0 and non-clickable
+ * instead of collapsing, so the ReaderDock's row never changes height (R1.4). */
 @Composable
-private fun SunnahLink(sunnahUrl: String?, onOpen: (String) -> Unit) {
-    if (sunnahUrl == null) return
+private fun SunnahLink(sunnahUrl: String?, onOpen: (String) -> Unit, keepSpaceWhenHidden: Boolean = false) {
+    if (sunnahUrl == null && !keepSpaceWhenHidden) return
     val colors = LocalHadithColors.current
+    val visible = sunnahUrl != null
     Row(
         modifier = Modifier
             .heightIn(min = 48.dp)
-            .clickable { onOpen(sunnahUrl) },
+            .alpha(if (visible) 1f else 0f)
+            .clickable(enabled = visible) { sunnahUrl?.let(onOpen) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = "View on Sunnah.com", color = colors.accentInk, fontWeight = FontWeight.Medium, fontSize = 14.sp)
@@ -470,37 +566,6 @@ private fun ExpandToggle(expanded: Boolean, hasExcerpt: Boolean, hasArabic: Bool
             tint = colors.textSoft,
             modifier = Modifier.rotate(rotation).size(16.dp),
         )
-    }
-}
-
-@Composable
-private fun BriefReference(hadith: Hadith, darkTheme: Boolean) {
-    val colors = LocalHadithColors.current
-    val typography = LocalHadithTypography.current
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 18.dp),
-    ) {
-        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
-        Spacer(Modifier.height(18.dp))
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Column {
-                Text(
-                    text = "${hadith.collectionTitle}  ·  Hadith ${hadith.ref}",
-                    style = typography.contentMeta,
-                    color = colors.text,
-                )
-                if (hadith.chapter.isNotEmpty()) {
-                    Text(text = hadith.chapter, style = typography.secondaryScaled, color = colors.muted)
-                }
-            }
-            StatusPill(primary = hadith.primary, darkTheme = darkTheme)
-        }
     }
 }
 
@@ -588,6 +653,98 @@ private fun ReferenceField(label: String, value: String, modifier: Modifier = Mo
 private fun FailureBlock() {
     val colors = LocalHadithColors.current
     Text(text = DRAW_FAILURE_MESSAGE, color = colors.error, fontSize = 16.sp, textAlign = TextAlign.Center)
+}
+
+/** R1.4: the fixed sibling in docked mode. Never scrolls; its two top rows never change height
+ * across Loading/Loaded/Failure (R0.3's "dock height stability"). */
+@Composable
+private fun ReaderDock(
+    uiState: ReaderUiState,
+    darkTheme: Boolean,
+    isSaved: Boolean,
+    onDraw: () -> Unit,
+    onCopy: (Hadith) -> Unit,
+    onOpenSave: (Hadith) -> Unit,
+    onOpenShare: (Hadith) -> Unit,
+    onOpenSunnah: (String) -> Unit,
+) {
+    val colors = LocalHadithColors.current
+    Column(Modifier.fillMaxWidth().widthIn(max = 780.dp)) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+        ReaderDockContent(uiState, darkTheme, isSaved, onDraw, onCopy, onOpenSave, onOpenShare, onOpenSunnah)
+    }
+}
+
+@Composable
+private fun ReaderDockContent(
+    uiState: ReaderUiState,
+    darkTheme: Boolean,
+    isSaved: Boolean,
+    onDraw: () -> Unit,
+    onCopy: (Hadith) -> Unit,
+    onOpenSave: (Hadith) -> Unit,
+    onOpenShare: (Hadith) -> Unit,
+    onOpenSunnah: (String) -> Unit,
+) {
+    val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
+    val loaded = uiState as? ReaderUiState.Loaded
+    val hadith = loaded?.hadith
+    val sidePadding = if (LocalConfiguration.current.screenWidthDp < 720) 16.dp else 20.dp
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = sidePadding).padding(top = 14.dp, bottom = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
+        ) {
+            when {
+                hadith != null -> Text(
+                    text = "${hadith.collectionTitle}  ·  Hadith ${hadith.ref}",
+                    style = typography.contentMeta,
+                    color = colors.text,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                uiState is ReaderUiState.Loading -> Box(
+                    Modifier.weight(1f).fillMaxWidth(0.6f).height(14.dp)
+                        .background(shimmerColor(), RoundedCornerShape(6.dp)),
+                )
+                else -> Spacer(Modifier.weight(1f).height(24.dp))
+            }
+            if (hadith != null) StatusPill(primary = hadith.primary, darkTheme = darkTheme)
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            when {
+                hadith != null && hadith.chapter.isNotEmpty() -> Text(
+                    text = hadith.chapter,
+                    style = typography.secondaryScaled,
+                    color = colors.muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                uiState is ReaderUiState.Loading -> Box(
+                    Modifier.weight(1f).fillMaxWidth(0.35f).height(12.dp)
+                        .background(shimmerColor(), RoundedCornerShape(6.dp)),
+                )
+                else -> Spacer(Modifier.weight(1f))
+            }
+            SunnahLink(sunnahUrl = hadith?.sunnahUrl, onOpen = onOpenSunnah, keepSpaceWhenHidden = true)
+        }
+        Spacer(Modifier.height(14.dp))
+        PrimaryButton(uiState = uiState, onDraw = onDraw)
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
+            QuietActionsRow(uiState = uiState, isSaved = isSaved, onCopy = onCopy, onOpenSave = onOpenSave, onOpenShare = onOpenShare)
+        }
+    }
 }
 
 @Composable
