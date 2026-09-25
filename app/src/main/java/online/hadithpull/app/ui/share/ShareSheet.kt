@@ -104,7 +104,7 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
         if (granted && fileName != null && bmp != null) {
             scope.launch { finishSave(context, bmp, fileName, toastState) }
         } else if (!granted) {
-            toastState.show("Storage permission is needed to save — use Share instead")
+            toastState.show("Storage permission is needed to save. Use Share instead.")
         }
     }
 
@@ -165,7 +165,7 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
                 when (val result = shareToInstagram(context, bmp, uri, name)) {
                     InstagramShareResult.Sent -> Unit
                     is InstagramShareResult.FellBackToSave -> when (result.result) {
-                        SaveResult.Success -> toastState.show("Image saved — post it from your gallery in Instagram")
+                        SaveResult.Success -> toastState.show("Image saved. Post it from your gallery in Instagram.")
                         SaveResult.Failure -> toastState.show("Could not save the card")
                         SaveResult.PermissionNeeded -> {
                             pendingSaveFileName = name
@@ -221,7 +221,7 @@ private fun ShareSheet(
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Text(text = "Share this Hadith", style = typography.sheetTitle, color = colors.text)
             Spacer(Modifier.height(4.dp))
-            Text(text = "1080 × 1080 — sized for an Instagram post.", color = colors.muted, fontSize = 13.6.sp)
+            Text(text = "1080 × 1080, sized for an Instagram post.", color = colors.muted, fontSize = 13.6.sp)
             Spacer(Modifier.height(16.dp))
 
             Box(

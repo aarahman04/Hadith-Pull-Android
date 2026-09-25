@@ -58,7 +58,7 @@ class PlainTextTest {
     @Test
     fun `shareText quotes the excerpt or english and appends the reference and site`() {
         val h = hadith()
-        val expected = "\"${h.english}\"\n\n— Sahih al-Bukhari, Hadith 1\nhttps://hadithpull.online"
+        val expected = "\"${h.english}\"\n\nSahih al-Bukhari, Hadith 1\nhttps://hadithpull.online"
         assertEquals(expected, shareText(h))
     }
 }

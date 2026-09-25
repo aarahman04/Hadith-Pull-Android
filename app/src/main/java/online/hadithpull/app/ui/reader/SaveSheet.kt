@@ -108,7 +108,7 @@ fun SaveSheet(
             Spacer(Modifier.height(18.dp))
 
             if (folders.isEmpty()) {
-                Text(text = "No folders yet — create one below.", color = colors.muted, fontSize = 14.sp)
+                Text(text = "No folders yet. Create one below.", color = colors.muted, fontSize = 14.sp)
             } else {
                 Column(
                     Modifier

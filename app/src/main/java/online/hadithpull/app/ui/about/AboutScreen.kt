@@ -102,7 +102,7 @@ private fun AboutScreen(
         Panel {
             Text(
                 text = "This project was built in my free time as a simple way to read and reflect on Hadith. " +
-                    "The goal is to keep it clean, minimal, and focused on the message — no clutter, " +
+                    "The goal is to keep it clean, minimal, and focused on the message: no clutter, " +
                     "no noise, just the text.",
                 style = typography.body,
                 color = colors.textSoft,
@@ -111,7 +111,7 @@ private fun AboutScreen(
             Text(
                 text = "Every narration is shown together with its full reference: the collection, the hadith " +
                     "number, the chapter, and the grading reported by the source. That way anyone reading " +
-                    "it — or receiving a card you shared — can go back and cross-check it for themselves.",
+                    "it, or receiving a card you shared, can go back and cross-check it for themselves.",
                 style = typography.body,
                 color = colors.textSoft,
             )
@@ -140,7 +140,7 @@ private fun AboutScreen(
             Spacer(Modifier.height(19.dp))
             Text(
                 text = "All three render exactly the same characters. The source provides a single Arabic " +
-                    "version, so this changes the letterforms only — none of them is a conversion to the " +
+                    "version, so this changes the letterforms only. None of them is a conversion to the " +
                     "Indo-Pak orthography used in the printed Mushaf, which differs from standard Arabic in " +
                     "its spelling and diacritic conventions and would need both a differently encoded source " +
                     "text and a font licensed for that specific purpose. The community fonts that do " +
@@ -175,7 +175,7 @@ private fun AboutScreen(
             Text(
                 text = "Each narration shows the gradings recorded for it, with the scholar who gave each " +
                     "one; where scholars differ, Al-Albani's grading is shown first. Sahih al-Bukhari and " +
-                    "Sahih Muslim carry no individual gradings — their contents are accepted as authentic " +
+                    "Sahih Muslim carry no individual gradings. Their contents are accepted as authentic " +
                     "by scholarly consensus, so they are marked Sahih. For anything you intend to act on " +
                     "or pass along, please verify with the printed collection or a qualified scholar.",
                 style = typography.body,
@@ -183,7 +183,7 @@ private fun AboutScreen(
             )
             Spacer(Modifier.height(19.dp))
             Text(
-                text = "Collections are sequences, and some entries carry no text of their own — only " +
+                text = "Collections are sequences, and some entries carry no text of their own, only " +
                     "“the same as above”, or a second chain of narrators for the hadith before it. " +
                     "Pulled out on their own they point at nothing, so they are skipped and another " +
                     "narration is drawn instead.",
@@ -192,7 +192,10 @@ private fun AboutScreen(
             )
             Spacer(Modifier.height(19.dp))
             Text(
-                text = "Each narration links to its page on Sunnah.com, where you can read it in context.",
+                text = "The \"View on Sunnah.com\" link is built from each narration's reference, following " +
+                    "Sunnah.com's own web address format. Hadith Pull does not pull any text or data from " +
+                    "Sunnah.com: every narration, translation and grading shown here comes from the Hadith " +
+                    "API dataset by Fawaz Ahmed, bundled with the app.",
                 style = typography.body,
                 color = colors.textSoft,
             )
@@ -210,7 +213,7 @@ private fun AboutScreen(
             PanelTitle("Say salam")
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Corrections, ideas, or just salam — all welcome.",
+                text = "Corrections, ideas, or just salam. All welcome.",
                 style = typography.body,
                 color = colors.textSoft,
             )
@@ -256,7 +259,7 @@ private fun AboutScreen(
         Spacer(Modifier.height(24.dp))
 
         Column(horizontalAlignment = Alignment.Start) {
-            Text(text = "Hadith Pull — built for quiet reading.", color = colors.muted, fontSize = 13.4.sp)
+            Text(text = "Hadith Pull, built for quiet reading.", color = colors.muted, fontSize = 13.4.sp)
             Text(text = "Texts via Hadith API", color = colors.muted, fontSize = 13.4.sp)
             Text(text = "Version ${BuildConfig.VERSION_NAME}", color = colors.muted, fontSize = 13.4.sp)
         }

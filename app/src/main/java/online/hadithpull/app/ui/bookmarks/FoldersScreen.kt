@@ -169,7 +169,7 @@ private fun FoldersScreen(
         if (windowWidthDp >= 720) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Hadiths you've saved, organized into folders you name — kept on this device only.",
+                text = "Hadiths you've saved, organized into folders you name. Kept on this device only.",
                 style = typography.body,
                 color = colors.textSoft,
             )

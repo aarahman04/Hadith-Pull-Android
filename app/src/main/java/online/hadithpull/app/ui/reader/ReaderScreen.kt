@@ -183,7 +183,7 @@ private fun Hero(windowWidthDp: Int) {
         if (windowWidthDp >= 720) {
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "A random narration, with its reference — so you can always verify the source.",
+                text = "A random narration, with its reference, so you can always verify the source.",
                 style = typography.body,
                 color = colors.textSoft,
                 textAlign = TextAlign.Center,
@@ -560,7 +560,7 @@ private fun FullReference(hadith: Hadith, darkTheme: Boolean) {
                 } else {
                     grades.forEach { grade ->
                         Text(
-                            text = "${grade.grade} — ${grade.by}",
+                            text = "${grade.by}: ${grade.grade}",
                             color = colors.text,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,

@@ -17,5 +17,5 @@ fun plainText(h: Hadith): String {
 /** Exact port of shareText() from card.js/script.js, used by §3.4's share paths. */
 fun shareText(h: Hadith): String {
     val excerpt = buildExcerpt(h.english, PAGE_EXCERPT) ?: h.english
-    return "\"$excerpt\"\n\n— ${h.collectionTitle}, Hadith ${h.ref}\nhttps://hadithpull.online"
+    return "\"$excerpt\"\n\n${h.collectionTitle}, Hadith ${h.ref}\nhttps://hadithpull.online"
 }
