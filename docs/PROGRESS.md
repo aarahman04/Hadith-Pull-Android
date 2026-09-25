@@ -446,3 +446,46 @@ delete from the Bookmarks tab).
 
 **Blockers/questions:** none.
 
+
+### Step 19 — Copy pass: em dashes and the About Sunnah.com paragraph
+
+**Done:** every user-visible em dash listed in the spec's Android table
+(§R1.2) is replaced by exact match: `shareText`'s reference line, the full-
+reference grade rows (now `"{by}: {grade}"`), the Reader hero subline, the
+Bookmarks subline, the Save sheet's empty state, three Share-sheet strings
+(permission toast, Instagram-fallback toast, sheet subtitle), six About
+strings (three prose paragraphs, "A note on the Arabic", the grades
+paragraph, the skipped-entries paragraph, "Say salam", the footer line),
+and both privacy-policy title lines (`res/raw/privacy_policy.txt`,
+`PRIVACY.md`). `LicensesScreen.kt`'s five OFL-subline em dashes are
+deliberately left as-is per the spec — Step 23 replaces that file's entire
+entry list, so fixing them now would be edited twice. Code comments
+(`AppTypefaces.kt`, `CardRenderer.kt`, `HadithRepository.kt`,
+`DrawEngine.kt`, `ShareActions.kt`, `Icons.kt`, `AppNav.kt`) are untouched,
+per the spec's scope.
+
+Also rewrote About's "Where the texts come from" closing paragraph (item 7)
+to the spec's exact wording: the Sunnah.com link is a generated URL, not a
+data source, and the app pulls no text or data from Sunnah.com.
+
+**One test updated:** `PlainTextTest.kt`'s `shareText` expectation dropped
+its leading `"— "` to match the new copy. No other test asserted an
+em-dash string produced by app code (the `"— Narrated X"` fixtures in
+`CardInputTest.kt`/`TextMeasureTest.kt`/`PlainTextTest.kt` are arbitrary
+test data for the `narrator` field, not em-dash copy the app generates —
+Android's `narrator` field never carries that prefix itself, unlike the
+web's).
+
+**Commands run:**
+- `grep -rn "—" app/src/main/java app/src/main/res/values app/src/main/res/raw/privacy_policy.txt PRIVACY.md` (before and after) → confirmed only comments and `LicensesScreen.kt` remain.
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug testDebugUnitTest` → BUILD SUCCESSFUL in 25s, all tests green.
+
+**Acceptance:**
+- `assembleDebug` + `testDebugUnitTest` pass: PASS
+- Every string in the spec's table appears verbatim at its cited location: PASS
+- `grep` for em dashes outside comments/third-party license text returns nothing (excluding `LicensesScreen.kt`, deferred to Step 23 by design): PASS
+
+**Unspecified choices:** none — every replacement string was given verbatim in the spec.
+
+**Blockers/questions:** none.
+
