@@ -1205,3 +1205,23 @@ invented by this step.
 layout, with no new interactive behaviour to flag.
 
 **Blockers/questions:** none.
+
+### Step 34 -- Final check and wrap-up
+
+**Done:** ran the full build matrix and the orphan-check grep from the spec.
+
+**Commands run:**
+- `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug assembleRelease lintDebug testDebugUnitTest` → BUILD SUCCESSFUL in 2m 9s (release build, including R8 minification and resource shrinking, is clean).
+- `grep -rn "Texts via Hadith API|ThemeSegmentedControl|AttributionLine|FooterAction|Divider14" app/src/main/java` → the only hit is `ShareSheet.kt`'s own, unrelated `ThemeSegmentedControl` (the share-card's Light/Dark toggle, a different composable with a coincidentally identical name, untouched by this round and out of scope). "Texts via Hadith API", `AttributionLine`, `FooterAction` and `Divider14` all return zero hits.
+
+**Acceptance:**
+- `lintDebug`: PASS (0 error-severity findings across all 8 steps)
+- `assembleDebug` + `assembleRelease`: PASS
+- `testDebugUnitTest`: PASS, 105/105 (unchanged from before this round -- Round 3 is Compose UI only, adding no new pure-logic surface to test)
+
+**Final report lists anything NOT TESTED:** every step's Compose-only behaviour (the theme
+long-press menu, "Copied" inline confirmations and their 2000ms revert timing, the Reading Mode
+segmented control at various widths, the Save sheet's hide-then-dismiss animation, the Bookmarks
+LazyColumn scroll fix, the two-level DropdownMenu in Folder detail's overflow) has no JVM-testable
+surface in this project and is a device-pass item for the user, consistent with every step's own
+report above.
