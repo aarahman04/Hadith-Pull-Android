@@ -5,11 +5,10 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,17 +19,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,9 +62,18 @@ import online.hadithpull.app.data.library.applyImport
 import online.hadithpull.app.data.library.previewImport
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.share.writeLibraryToCache
+import online.hadithpull.app.ui.components.ChevronTrailing
+import online.hadithpull.app.ui.components.GroupedList
+import online.hadithpull.app.ui.components.HadithCard
 import online.hadithpull.app.ui.components.HadithIcons
+import online.hadithpull.app.ui.components.HadithPrimaryButton
+import online.hadithpull.app.ui.components.ListRow
 import online.hadithpull.app.ui.components.LocalToastState
-import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.components.NewFolderField
+import online.hadithpull.app.ui.components.RowDivider
+import online.hadithpull.app.ui.components.ScreenHero
+import online.hadithpull.app.ui.components.SectionHeader
+import online.hadithpull.app.ui.theme.HadithSpacing
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
 
@@ -89,6 +94,7 @@ fun FoldersRoute(
     val scope = rememberCoroutineScope()
 
     var newFolderName by remember { mutableStateOf("") }
+    var creatingFolder by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<FolderSummary?>(null) }
     var deleteTarget by remember { mutableStateOf<FolderSummary?>(null) }
 
@@ -99,6 +105,7 @@ fun FoldersRoute(
                 is CreateFolderResult.Created -> {
                     toastState.show("Folder \"${result.folder.name}\" created")
                     newFolderName = ""
+                    creatingFolder = false
                 }
                 is CreateFolderResult.Existing -> {
                     toastState.show("A folder with that name already exists")
@@ -111,13 +118,15 @@ fun FoldersRoute(
     FoldersScreen(
         folders = folders,
         newFolderName = newFolderName,
+        creatingFolder = creatingFolder,
+        onCreatingFolderChange = { creatingFolder = it },
         onNewFolderNameChange = { if (it.length <= MAX_FOLDER_NAME_LENGTH) newFolderName = it },
         onCreateFolder = ::submitCreate,
         onOpenFolder = onOpenFolder,
         onGoToReader = onGoToReader,
         onRename = { renameTarget = it },
         onDelete = { deleteTarget = it },
-        libraryContent = { LibrarySection(container) },
+        libraryContent = { LibrarySection(container, hasFolders = folders.isNotEmpty()) },
     )
 
     renameTarget?.let { target ->
@@ -151,10 +160,15 @@ fun FoldersRoute(
     }
 }
 
+/** Round 3 §Step 31: the root is a LazyColumn (fixing a real bug -- this screen had no scroll at
+ * all, which is the likely root cause of the "export/import renders poorly" complaint once a
+ * folder list grew past a few entries), capped at 720dp wide. */
 @Composable
 private fun FoldersScreen(
     folders: List<FolderSummary>,
     newFolderName: String,
+    creatingFolder: Boolean,
+    onCreatingFolderChange: (Boolean) -> Unit,
     onNewFolderNameChange: (String) -> Unit,
     onCreateFolder: () -> Unit,
     onOpenFolder: (Long) -> Unit,
@@ -163,100 +177,119 @@ private fun FoldersScreen(
     onDelete: (FolderSummary) -> Unit,
     libraryContent: @Composable () -> Unit,
 ) {
-    val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
     val windowWidthDp = LocalConfiguration.current.screenWidthDp
     val sidePadding = if (windowWidthDp < 720) 16.dp else 20.dp
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = sidePadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
-            Text(
-                text = "YOUR LIBRARY",
-                style = typography.eyebrow,
-                color = colors.muted,
-                modifier = Modifier.padding(horizontal = 10.dp),
-            )
-            Box(Modifier.width(28.dp).height(1.dp).background(colors.borderStrong))
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(text = "Bookmarks", style = typography.pageTitle, color = colors.text, textAlign = TextAlign.Center)
-        if (windowWidthDp >= 720) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Hadiths you've saved, organized into folders you name. Kept on this device only.",
-                style = typography.body,
-                color = colors.textSoft,
-                textAlign = TextAlign.Center,
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth(),
-        ) {
-            OutlinedTextField(
-                value = newFolderName,
-                onValueChange = onNewFolderNameChange,
-                placeholder = { Text("New folder name…") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(10.dp))
-            TextButton(onClick = onCreateFolder) {
-                Text("Create folder", color = colors.accent, fontWeight = FontWeight.Medium)
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-
-        if (folders.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.surface, HadithShapes.lg)
-                    .border(1.dp, colors.border, HadithShapes.lg)
-                    .padding(24.dp),
-            ) {
-                Text(
-                    text = "No folders yet. Create one above, or open a Hadith and tap Save to start your first one.",
-                    color = colors.textSoft,
+        item {
+            Spacer(Modifier.height(HadithSpacing.xl))
+            Box(Modifier.widthIn(max = 720.dp)) {
+                ScreenHero(
+                    eyebrow = "YOUR LIBRARY",
+                    title = "Bookmarks",
+                    titleStyle = typography.pageTitle,
+                    subline = if (windowWidthDp >= 720) {
+                        "Hadiths you've saved, organized into folders you name. Kept on this device only."
+                    } else {
+                        null
+                    },
                 )
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = onGoToReader, shape = HadithShapes.pill) {
-                    Text("Read a Hadith")
+            }
+            Spacer(Modifier.height(HadithSpacing.xxl))
+        }
+        item {
+            Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                SectionHeader(
+                    eyebrow = "Folders",
+                    action = if (!creatingFolder) {
+                        { NewFolderField(expanded = false, onExpandedChange = onCreatingFolderChange, value = newFolderName, onValueChange = onNewFolderNameChange, onSubmit = onCreateFolder) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            if (creatingFolder) {
+                Spacer(Modifier.height(HadithSpacing.md))
+                Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                    NewFolderField(
+                        expanded = true,
+                        onExpandedChange = onCreatingFolderChange,
+                        value = newFolderName,
+                        onValueChange = onNewFolderNameChange,
+                        onSubmit = onCreateFolder,
+                    )
                 }
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 720.dp)
-                    .background(colors.surfaceSolid, RoundedCornerShape(16.dp))
-                    .border(1.dp, colors.border, RoundedCornerShape(16.dp)),
-            ) {
-                folders.forEachIndexed { index, folder ->
-                    FolderRow(
-                        folder = folder,
-                        onOpen = { onOpenFolder(folder.id) },
-                        onRename = { onRename(folder) },
-                        onDelete = { onDelete(folder) },
-                    )
-                    if (index < folders.lastIndex) {
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+            Spacer(Modifier.height(HadithSpacing.md))
+        }
+        item {
+            Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                if (folders.isEmpty()) {
+                    EmptyFoldersCard(onGoToReader)
+                } else {
+                    GroupedList {
+                        folders.forEachIndexed { index, folder ->
+                            FolderRow(
+                                folder = folder,
+                                onOpen = { onOpenFolder(folder.id) },
+                                onRename = { onRename(folder) },
+                                onDelete = { onDelete(folder) },
+                            )
+                            if (index < folders.lastIndex) RowDivider()
+                        }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(24.dp))
-        libraryContent()
-        Spacer(Modifier.height(24.dp))
+        item {
+            Spacer(Modifier.height(HadithSpacing.section))
+            Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                SectionHeader(
+                    eyebrow = "Backup",
+                    lede = "Keep a copy of your bookmarks, or move them to another device.",
+                )
+            }
+            Spacer(Modifier.height(HadithSpacing.md))
+            Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) { libraryContent() }
+            Spacer(Modifier.height(HadithSpacing.xxl))
+        }
+    }
+}
+
+@Composable
+private fun EmptyFoldersCard(onGoToReader: () -> Unit) {
+    val colors = LocalHadithColors.current
+    HadithCard(contentPadding = PaddingValues(24.dp)) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier.size(48.dp).background(colors.accentSoft, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(HadithIcons.bookmark),
+                    contentDescription = null,
+                    tint = colors.accent,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(text = "No folders yet", style = LocalHadithTypography.current.panelTitle, color = colors.text)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Open a Hadith and tap Save, or tap New folder above.",
+                color = colors.muted,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(16.dp))
+            HadithPrimaryButton(text = "Read a Hadith", onClick = onGoToReader)
+        }
     }
 }
 
@@ -316,28 +349,23 @@ private fun FolderRow(folder: FolderSummary, onOpen: () -> Unit, onRename: () ->
                 DropdownMenuItem(text = { Text("Delete", color = colors.error) }, onClick = { menuOpen = false; onDelete() })
             }
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = colors.muted,
-            modifier = Modifier.size(16.dp),
-        )
+        ChevronTrailing()
     }
 }
 
 private fun libraryFileName(): String = "hadith-pull-library-${LocalDate.now()}.html"
 
-/** R1.8/R0.6: the "Library" entry point -- Export (SAF save), Share (chooser via FileProvider)
- * and Import (SAF open, with a confirm dialog before writing and a summary after). */
+/** R1.8/R0.6/Round 3 §Step 31: the "Library" entry point -- Export/Share/Import as three rows in
+ * a grouped list, moved out of primary visual weight so it doesn't compete with folder browsing
+ * (the "shown poorly" bug). */
 @Composable
-private fun LibrarySection(container: AppContainer) {
-    val colors = LocalHadithColors.current
+private fun LibrarySection(container: AppContainer, hasFolders: Boolean) {
     val context = LocalContext.current
     val toastState = LocalToastState.current
     val scope = rememberCoroutineScope()
 
-    var expanded by remember { mutableStateOf(false) }
     var pendingImport by remember { mutableStateOf<LibraryExportDocument?>(null) }
+    var emptyImport by remember { mutableStateOf(false) }
     var importSummary by remember { mutableStateOf<String?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/html")) { uri ->
@@ -353,42 +381,36 @@ private fun LibrarySection(container: AppContainer) {
         scope.launch {
             val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             when (val result = bytes?.let { LibraryImport.parse(it) }) {
-                is ParseResult.Ok -> pendingImport = result.document
+                is ParseResult.Ok -> {
+                    if (previewImport(result.document).itemCount == 0) {
+                        emptyImport = true
+                    } else {
+                        pendingImport = result.document
+                    }
+                }
                 ParseResult.NotALibraryFile, null -> toastState.show("This isn't a Hadith Pull library file.")
                 ParseResult.TooLarge -> toastState.show("This file is too large to import.")
             }
         }
     }
 
-    Column(Modifier.fillMaxWidth().widthIn(max = 720.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(colors.surfaceSolid, RoundedCornerShape(16.dp))
-                .border(1.dp, colors.border, RoundedCornerShape(16.dp))
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 16.dp)
-                .heightIn(min = 56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Export, share or import your bookmarks",
-                color = colors.text,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = colors.muted,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        if (expanded) {
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TextButton(onClick = { exportLauncher.launch(libraryFileName()) }) { Text("Export") }
-                TextButton(onClick = {
+    fun requireFolders(action: () -> Unit) {
+        if (hasFolders) action() else toastState.show("No bookmarks to export yet.")
+    }
+
+    GroupedList {
+        ListRow(
+            title = "Export to a file",
+            subtitle = "Save a readable copy you can import later",
+            onClick = { requireFolders { exportLauncher.launch(libraryFileName()) } },
+            trailing = { ChevronTrailing() },
+        )
+        RowDivider()
+        ListRow(
+            title = "Share library file",
+            subtitle = "Send it to another app or device",
+            onClick = {
+                requireFolders {
                     scope.launch {
                         val html = LibraryExport.buildDocument(container.bookmarkRepository)
                         val uri = writeLibraryToCache(context, html, libraryFileName())
@@ -399,10 +421,17 @@ private fun LibrarySection(container: AppContainer) {
                         }
                         context.startActivity(Intent.createChooser(send, "Share your library"))
                     }
-                }) { Text("Share") }
-                TextButton(onClick = { importLauncher.launch(arrayOf("text/html")) }) { Text("Import") }
-            }
-        }
+                }
+            },
+            trailing = { ChevronTrailing() },
+        )
+        RowDivider()
+        ListRow(
+            title = "Import a library file",
+            subtitle = "Add folders from a Hadith Pull file",
+            onClick = { importLauncher.launch(arrayOf("text/html")) },
+            trailing = { ChevronTrailing() },
+        )
     }
 
     pendingImport?.let { doc ->
@@ -430,6 +459,15 @@ private fun LibrarySection(container: AppContainer) {
                 }) { Text("Import") }
             },
             dismissButton = { TextButton(onClick = { pendingImport = null }) { Text("Cancel") } },
+        )
+    }
+
+    if (emptyImport) {
+        AlertDialog(
+            onDismissRequest = { emptyImport = false },
+            title = { Text("Nothing to import") },
+            text = { Text("This file doesn't contain any saved Hadiths.") },
+            confirmButton = { TextButton(onClick = { emptyImport = false }) { Text("OK") } },
         )
     }
 
