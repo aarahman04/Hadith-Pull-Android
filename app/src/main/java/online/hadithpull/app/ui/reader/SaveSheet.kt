@@ -116,15 +116,15 @@ fun SaveSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(width = 36.dp, height = 4.dp, color = colors.borderStrong) },
     ) {
         Box(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            Text(text = "Save to a folder", style = typography.sheetTitle, color = colors.text)
+        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 20.dp)) {
+            Text(text = "Save to a folder", style = typography.sectionTitle.copy(fontSize = 20.sp), color = colors.text)
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Keep this Hadith somewhere you'll find it again.",
                 color = colors.muted,
-                fontSize = 13.6.sp,
+                style = typography.helper,
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(14.dp))
 
             if (folders.isEmpty()) {
                 Text(text = "No folders yet. Create one below.", color = colors.muted, fontSize = 14.sp)
@@ -132,9 +132,9 @@ fun SaveSheet(
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 300.dp)
+                        .heightIn(max = 264.dp)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     folders.forEach { folder ->
                         SaveSheetFolderRow(
@@ -162,8 +162,8 @@ fun SaveSheet(
                 onSubmit = { submitCreate() },
             )
 
-            Spacer(Modifier.height(20.dp))
-            HadithPrimaryButton(text = "Done", onClick = { close() })
+            Spacer(Modifier.height(14.dp))
+            HadithPrimaryButton(text = "Done", onClick = { close() }, compact = true)
 
             Spacer(Modifier.height(4.dp))
             TertiaryLink(
@@ -186,21 +186,21 @@ private fun SaveSheetFolderRow(folder: FolderSummary, checked: Boolean, onClick:
     val colors = LocalHadithColors.current
     HadithCard(
         selected = checked,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         modifier = Modifier.clickable(onClick = onClick),
     ) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(if (checked) colors.accent else colors.accentSoft, RoundedCornerShape(12.dp)),
+                    .size(32.dp)
+                    .background(if (checked) colors.accent else colors.accentSoft, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(if (checked) HadithIcons.bookmarkFilled else HadithIcons.bookmark),
                     contentDescription = null,
                     tint = if (checked) colors.bg else colors.accent,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
             Spacer(Modifier.width(14.dp))
@@ -209,20 +209,20 @@ private fun SaveSheetFolderRow(folder: FolderSummary, checked: Boolean, onClick:
                     text = folder.name,
                     color = colors.text,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (folder.count == 1) "1 Hadith" else "${folder.count} Hadiths",
                     color = colors.muted,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                 )
             }
             Spacer(Modifier.width(12.dp))
             Box(
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(20.dp)
                     .background(if (checked) colors.accent else Color.Transparent, CircleShape)
                     .border(1.5.dp, if (checked) colors.accent else colors.borderStrong, CircleShape),
                 contentAlignment = Alignment.Center,
@@ -232,7 +232,7 @@ private fun SaveSheetFolderRow(folder: FolderSummary, checked: Boolean, onClick:
                         painter = painterResource(HadithIcons.check),
                         contentDescription = null,
                         tint = colors.bg,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(12.dp),
                     )
                 }
             }

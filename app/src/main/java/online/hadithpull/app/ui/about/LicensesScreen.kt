@@ -2,17 +2,12 @@ package online.hadithpull.app.ui.about
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RawRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -27,8 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import online.hadithpull.app.R
+import online.hadithpull.app.ui.components.ChevronTrailing
 import online.hadithpull.app.ui.components.HadithBackTopBar
-import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.components.ListRow
+import online.hadithpull.app.ui.components.RowDivider
 import online.hadithpull.app.ui.theme.LocalHadithColors
 
 private data class LicenseEntry(val title: String, val subtitle: String, @RawRes val textRes: Int)
@@ -115,53 +112,43 @@ private fun LicensesRowList(
     onSelectEntry: (LicenseEntry) -> Unit,
     onSelectGroup: (LicenseRow.Group) -> Unit,
 ) {
-    val colors = LocalHadithColors.current
     LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
-        items(rows) { row ->
+        itemsIndexed(rows) { index, row ->
             val entry = when (row) {
                 is LicenseRow.Single -> row.entry
                 is LicenseRow.Group -> null
             }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.surface, HadithShapes.md)
-                    .border(1.dp, colors.border, HadithShapes.md)
-                    .clickable {
-                        when (row) {
-                            is LicenseRow.Single -> onSelectEntry(row.entry)
-                            is LicenseRow.Group -> onSelectGroup(row)
-                        }
+            val title = entry?.title ?: (row as LicenseRow.Group).title
+            val subtitle = entry?.subtitle ?: (row as LicenseRow.Group).subtitle
+            ListRow(
+                title = title,
+                subtitle = subtitle,
+                onClick = {
+                    when (row) {
+                        is LicenseRow.Single -> onSelectEntry(row.entry)
+                        is LicenseRow.Group -> onSelectGroup(row)
                     }
-                    .padding(16.dp),
-            ) {
-                val title = entry?.title ?: (row as LicenseRow.Group).title
-                val subtitle = entry?.subtitle ?: (row as LicenseRow.Group).subtitle
-                Text(text = title, color = colors.text, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-                Text(text = subtitle, color = colors.muted, fontSize = 12.8.sp)
-            }
-            Spacer(Modifier.height(10.dp))
+                },
+                trailing = { ChevronTrailing() },
+                compact = true,
+            )
+            if (index < rows.lastIndex) RowDivider()
         }
     }
 }
 
 @Composable
 private fun LicensesList(entries: List<LicenseEntry>, onSelect: (LicenseEntry) -> Unit) {
-    val colors = LocalHadithColors.current
     LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
-        items(entries) { entry ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.surface, HadithShapes.md)
-                    .border(1.dp, colors.border, HadithShapes.md)
-                    .clickable { onSelect(entry) }
-                    .padding(16.dp),
-            ) {
-                Text(text = entry.title, color = colors.text, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-                Text(text = entry.subtitle, color = colors.muted, fontSize = 12.8.sp)
-            }
-            Spacer(Modifier.height(10.dp))
+        itemsIndexed(entries) { index, entry ->
+            ListRow(
+                title = entry.title,
+                subtitle = entry.subtitle,
+                onClick = { onSelect(entry) },
+                trailing = { ChevronTrailing() },
+                compact = true,
+            )
+            if (index < entries.lastIndex) RowDivider()
         }
     }
 }

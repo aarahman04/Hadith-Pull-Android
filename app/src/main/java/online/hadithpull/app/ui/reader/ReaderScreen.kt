@@ -1,16 +1,23 @@
 package online.hadithpull.app.ui.reader
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,7 +48,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +60,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -214,11 +225,9 @@ private fun ReaderContentList(
     val sidePadding = if (windowWidthDp < 720) 16.dp else 20.dp
     val showScriptToggle = (uiState as? ReaderUiState.Loaded)
         ?.let { it.expanded && hasArabicWorthShowing(it.hadith.arabic) } == true
-    val barAtTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
-    val barBackground by animateColorAsState(
-        targetValue = if (barAtTop) Color.Transparent else colors.bg.copy(alpha = 0.92f),
-        label = "readingBarBg",
-    )
+    // Keep the sticky reading tool on one stable surface. Changing its opacity when the list
+    // scrolls makes the control appear to flicker or reactivate even when it was not touched.
+    val barBackground = colors.bg.copy(alpha = 0.96f)
 
     LazyColumn(
         state = listState,
@@ -230,12 +239,8 @@ private fun ReaderContentList(
             ScreenHero(
                 eyebrow = "HADITH OF THE MOMENT",
                 title = "Read. Reflect. Remember.",
-                titleStyle = LocalHadithTypography.current.heroTitle,
-                subline = if (windowWidthDp >= 720) {
-                    "A random narration, with its reference, so you can always verify the source."
-                } else {
-                    null
-                },
+                titleStyle = LocalHadithTypography.current.panelTitle.copy(fontSize = 22.sp),
+                subline = null,
             )
             Spacer(Modifier.height(16.dp))
         }
@@ -279,6 +284,13 @@ private fun ReadingModeControl(
     onCycleTextSize: () -> Unit,
 ) {
     val colors = LocalHadithColors.current
+    val textSizeInteractionSource = remember { MutableInteractionSource() }
+    val textSizePressed by textSizeInteractionSource.collectIsPressedAsState()
+    val textSizePressScale by animateFloatAsState(
+        targetValue = if (textSizePressed) 0.98f else 1f,
+        animationSpec = tween(120),
+        label = "textSizePressScale",
+    )
     Row(
         modifier = Modifier
             .height(40.dp)
@@ -316,8 +328,18 @@ private fun ReadingModeControl(
             modifier = Modifier
                 .height(34.dp)
                 .clip(HadithShapes.pill)
-                .background(if (textSize != TextSize.COMFORTABLE) colors.accentSoft else Color.Transparent)
-                .clickable(onClickLabel = "Change text size", onClick = onCycleTextSize)
+                // Size has no persistent fill: only the interaction source drives a brief
+                // press scale, so recomposition and scrolling cannot leave a highlight behind.
+                .graphicsLayer {
+                    scaleX = textSizePressScale
+                    scaleY = textSizePressScale
+                }
+                .clickable(
+                    interactionSource = textSizeInteractionSource,
+                    indication = null,
+                    onClickLabel = "Change text size",
+                    onClick = onCycleTextSize,
+                )
                 .padding(horizontal = 12.dp)
                 .semantics { contentDescription = "Text size: $label" },
             verticalAlignment = Alignment.CenterVertically,
@@ -338,10 +360,38 @@ private fun NarrationBlock(
     onToggleExpand: () -> Unit,
 ) {
     Box(Modifier.fillMaxWidth()) {
-        when (uiState) {
-            is ReaderUiState.Loading -> SkeletonBlock()
-            is ReaderUiState.Loaded -> LoadedNarration(uiState, darkTheme, windowWidthDp, onToggleExpand)
-            is ReaderUiState.Failure -> FailureBlock()
+        AnimatedContent(
+            targetState = uiState,
+            transitionSpec = {
+                val initialKey = (initialState as? ReaderUiState.Loaded)?.hadith?.key
+                val targetKey = (targetState as? ReaderUiState.Loaded)?.hadith?.key
+                val hadithChanged = initialKey != targetKey
+                if (targetState is ReaderUiState.Loaded && hadithChanged) {
+                    (
+                        fadeIn(tween(900, easing = FastOutSlowInEasing)) +
+                            expandVertically(
+                                animationSpec = tween(900, easing = FastOutSlowInEasing),
+                                expandFrom = Alignment.Top,
+                            ) +
+                            slideInVertically(
+                                animationSpec = tween(900, easing = FastOutSlowInEasing),
+                                initialOffsetY = { -8 },
+                            )
+                        ) togetherWith fadeOut(tween(240))
+                } else if (targetState !is ReaderUiState.Loaded) {
+                    fadeIn(tween(140)) togetherWith fadeOut(tween(180))
+                } else {
+                    EnterTransition.None togetherWith ExitTransition.None
+                }
+            },
+            label = "hadithContentTransition",
+        ) { state ->
+            when (state) {
+                is ReaderUiState.Loaded ->
+                    LoadedNarration(state, darkTheme, windowWidthDp, onToggleExpand)
+                is ReaderUiState.Loading -> SkeletonBlock()
+                is ReaderUiState.Failure -> FailureBlock()
+            }
         }
     }
 }
@@ -625,7 +675,7 @@ private fun ReaderDockContent(
     val sidePadding = if (LocalConfiguration.current.screenWidthDp < 720) 16.dp else 20.dp
 
     Column(Modifier.fillMaxWidth().padding(horizontal = sidePadding).padding(top = 12.dp, bottom = 8.dp)) {
-        HadithCard(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 0.dp)) {
+        HadithCard(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 0.dp)) {
             ReferenceSummary(hadith = hadith, loading = uiState is ReaderUiState.Loading, darkTheme = darkTheme, onOpenSunnah = onOpenSunnah)
         }
         Spacer(Modifier.height(12.dp))
@@ -637,31 +687,53 @@ private fun ReaderDockContent(
 
 @Composable
 private fun PrimaryButton(uiState: ReaderUiState, onDraw: () -> Unit) {
+    val colors = LocalHadithColors.current
     val loading = uiState is ReaderUiState.Loading
     val label = when (uiState) {
         is ReaderUiState.Loading -> "Seeking…"
         is ReaderUiState.Loaded -> "New Hadith"
         is ReaderUiState.Failure -> "Try again"
     }
-    val rotation = rememberInfiniteTransition(label = "spin").animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
-        label = "spinAngle",
-    ).value
-
     HadithPrimaryButton(
         text = label,
         onClick = onDraw,
         enabled = !loading,
+        compact = true,
         leadingIcon = {
-            Icon(
-                imageVector = Icons.Filled.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp).rotate(if (loading) rotation else 0f),
-            )
+            if (loading) {
+                LoadingSpinner(color = colors.bg)
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         },
     )
+}
+
+@Composable
+private fun LoadingSpinner(color: Color) {
+    val rotation = rememberInfiniteTransition(label = "newHadithSpinner").animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
+        label = "newHadithSpinnerRotation",
+    ).value
+    Canvas(Modifier.size(16.dp)) {
+        drawCircle(
+            color = color.copy(alpha = 0.28f),
+            style = Stroke(width = 2.dp.toPx()),
+        )
+        drawArc(
+            color = color,
+            startAngle = rotation - 90f,
+            sweepAngle = 105f,
+            useCenter = false,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
+        )
+    }
 }
 
 @Composable
@@ -695,6 +767,7 @@ private fun QuietActionsRow(
             enabled = enabled,
             tone = if (copied) ActionTone.Accent else ActionTone.Neutral,
             liveLabel = true,
+            compact = true,
         )
         SecondaryAction(
             label = if (isSaved) "Saved" else "Save",
@@ -702,12 +775,14 @@ private fun QuietActionsRow(
             onClick = { hadith?.let(onOpenSave) },
             enabled = enabled,
             tone = if (isSaved) ActionTone.Accent else ActionTone.Neutral,
+            compact = true,
         )
         SecondaryAction(
             label = "Share",
             icon = painterResource(HadithIcons.upload),
             onClick = { hadith?.let(onOpenShare) },
             enabled = enabled,
+            compact = true,
         )
     }
 }

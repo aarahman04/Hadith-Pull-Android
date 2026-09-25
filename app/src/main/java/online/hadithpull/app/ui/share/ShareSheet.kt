@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -218,8 +220,8 @@ private fun ShareSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Box(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            Text(text = "Share this Hadith", style = typography.sheetTitle, color = colors.text)
+        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 20.dp)) {
+            Text(text = "Share this Hadith", style = typography.sectionTitle.copy(fontSize = 20.sp), color = colors.text)
             Spacer(Modifier.height(4.dp))
             Text(text = "1080 × 1080, sized for an Instagram post.", color = colors.muted, fontSize = 13.6.sp)
             Spacer(Modifier.height(16.dp))
@@ -227,9 +229,11 @@ private fun ShareSheet(
             Box(
                 Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 280.dp)
                     .aspectRatio(1f)
                     .background(colors.surface, HadithShapes.md)
-                    .border(1.dp, colors.border, HadithShapes.md),
+                    .border(1.dp, colors.border, HadithShapes.md)
+                    .align(Alignment.CenterHorizontally),
             ) {
                 bitmap?.let {
                     Image(
@@ -258,12 +262,12 @@ private fun ShareSheet(
             }
             Spacer(Modifier.height(16.dp))
 
-            Button(onClick = onShareImage, enabled = hasImage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth()) {
-                Text("Share the image")
+            Button(onClick = onShareImage, enabled = hasImage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Share the image", style = typography.secondaryAction)
             }
             Spacer(Modifier.height(10.dp))
-            OutlinedButton(onClick = onSaveToDevice, enabled = hasImage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth()) {
-                Text("Save to device")
+            OutlinedButton(onClick = onSaveToDevice, enabled = hasImage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Save to device", style = typography.secondaryAction)
             }
             Spacer(Modifier.height(18.dp))
 

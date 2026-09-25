@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import online.hadithpull.app.ui.theme.HadithShapes
 import online.hadithpull.app.ui.theme.LocalHadithColors
+import online.hadithpull.app.ui.theme.LocalHadithTypography
 
 /** Round 3 §0.2: the one card/surface language, used for every grouped-content block across all
  * four screens. `selected` draws the accent-soft fill + accent border used by the Save sheet's
@@ -68,14 +69,16 @@ fun ListRow(
     subtitle: String? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    compact: Boolean = false,
 ) {
     val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = if (compact) 52.dp else 56.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 4.dp, vertical = if (compact) 8.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) {
@@ -85,9 +88,8 @@ fun ListRow(
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
+                style = typography.optionLabel.copy(fontWeight = if (compact) FontWeight.Normal else FontWeight.Medium),
                 color = colors.text,
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -95,8 +97,8 @@ fun ListRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = subtitle,
+                    style = typography.helper.copy(fontSize = if (compact) 13.sp else typography.helper.fontSize),
                     color = colors.muted,
-                    fontSize = 13.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

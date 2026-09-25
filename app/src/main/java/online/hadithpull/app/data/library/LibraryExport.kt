@@ -14,6 +14,15 @@ object LibraryExport {
 
     suspend fun buildDocument(bookmarkRepository: BookmarkRepository, folderId: Long? = null): String {
         val folders = bookmarkRepository.exportSnapshot(folderId)
+        return buildDocument(folders)
+    }
+
+    suspend fun buildDocument(bookmarkRepository: BookmarkRepository, folderIds: Set<Long>): String {
+        val folders = bookmarkRepository.exportSnapshot(folderIds)
+        return buildDocument(folders)
+    }
+
+    private fun buildDocument(folders: List<online.hadithpull.app.data.ExportFolder>): String {
         val document = LibraryExportDocument(
             exportedAt = System.currentTimeMillis(),
             folders = folders.map { f -> LibraryExportFolder(f.name, f.items.map { LibraryExportItem(it.key) }) },

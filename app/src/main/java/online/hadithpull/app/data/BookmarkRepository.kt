@@ -136,6 +136,16 @@ class BookmarkRepository(
         val targetFolders = folders().first().let { all ->
             if (folderId != null) all.filter { it.id == folderId } else all
         }
+        return exportFolders(targetFolders)
+    }
+
+    /** Snapshot for sharing an explicit set of folders, preserving the library's normal order. */
+    suspend fun exportSnapshot(folderIds: Set<Long>): List<ExportFolder> {
+        val targetFolders = folders().first().filter { it.id in folderIds }
+        return exportFolders(targetFolders)
+    }
+
+    private suspend fun exportFolders(targetFolders: List<FolderSummary>): List<ExportFolder> {
         return targetFolders.map { folder ->
             val items = bookmarkDao.items(folder.id).first().map { entity ->
                 ExportItem(key = entity.hadithKey, hadith = entity.toHadith())

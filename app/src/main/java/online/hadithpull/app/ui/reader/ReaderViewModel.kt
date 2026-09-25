@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import online.hadithpull.app.data.HadithRepository
@@ -20,6 +21,7 @@ sealed interface ReaderUiState {
 
 private const val KEY_HADITH_JSON = "hadith_json"
 private const val KEY_EXPANDED = "expanded"
+private const val MIN_DRAW_LOADING_MILLIS = 350L
 
 /** §4.1 seam: a single entry point, start(initial). null means draw; v1 always passes null. */
 class ReaderViewModel(
@@ -42,15 +44,21 @@ class ReaderViewModel(
             val restoredExpanded = savedStateHandle.get<Boolean>(KEY_EXPANDED) ?: false
             _uiState.value = ReaderUiState.Loaded(restoredHadith, restoredExpanded)
         } else {
-            draw()
+            draw(minimumLoadingMillis = 0L)
         }
     }
 
-    fun draw() {
+    fun draw(minimumLoadingMillis: Long = MIN_DRAW_LOADING_MILLIS) {
         val currentKey = (_uiState.value as? ReaderUiState.Loaded)?.hadith?.key
+        val drawStartedAt = System.nanoTime()
         _uiState.value = ReaderUiState.Loading
         viewModelScope.launch {
-            when (val result = hadithRepository.draw(currentKey)) {
+            val result = hadithRepository.draw(currentKey)
+            val elapsedMillis = (System.nanoTime() - drawStartedAt) / 1_000_000L
+            val remainingLoadingMillis = minimumLoadingMillis - elapsedMillis
+            if (remainingLoadingMillis > 0L) delay(remainingLoadingMillis)
+
+            when (result) {
                 is DrawResult.Success -> setLoaded(result.hadith, expanded = false)
                 is DrawResult.Failure -> _uiState.value = ReaderUiState.Failure
             }

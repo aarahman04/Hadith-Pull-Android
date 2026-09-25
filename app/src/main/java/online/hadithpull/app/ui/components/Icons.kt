@@ -24,4 +24,6 @@ object HadithIcons {
     @DrawableRes val whatsapp = R.drawable.ic_whatsapp
     @DrawableRes val facebook = R.drawable.ic_facebook
     @DrawableRes val instagram = R.drawable.ic_instagram
+    @DrawableRes val github = R.drawable.ic_github
+    @DrawableRes val linkedin = R.drawable.ic_linkedin
 }

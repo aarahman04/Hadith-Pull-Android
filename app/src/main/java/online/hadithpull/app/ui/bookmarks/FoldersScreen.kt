@@ -6,9 +6,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,12 +25,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,8 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -63,17 +69,14 @@ import online.hadithpull.app.data.library.previewImport
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.share.writeLibraryToCache
 import online.hadithpull.app.ui.components.ChevronTrailing
-import online.hadithpull.app.ui.components.GroupedList
-import online.hadithpull.app.ui.components.HadithCard
 import online.hadithpull.app.ui.components.HadithIcons
-import online.hadithpull.app.ui.components.HadithPrimaryButton
 import online.hadithpull.app.ui.components.ListRow
 import online.hadithpull.app.ui.components.LocalToastState
 import online.hadithpull.app.ui.components.NewFolderField
 import online.hadithpull.app.ui.components.RowDivider
 import online.hadithpull.app.ui.components.ScreenHero
-import online.hadithpull.app.ui.components.SectionHeader
 import online.hadithpull.app.ui.theme.HadithSpacing
+import online.hadithpull.app.ui.theme.HadithShapes
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
 
@@ -86,6 +89,7 @@ fun FoldersRoute(
     onOpenFolder: (Long) -> Unit,
     onGoToReader: () -> Unit,
 ) {
+    val context = LocalContext.current
     val viewModel: BookmarksViewModel = viewModel(
         factory = viewModelFactory { initializer { BookmarksViewModel(container.bookmarkRepository) } },
     )
@@ -97,6 +101,12 @@ fun FoldersRoute(
     var creatingFolder by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<FolderSummary?>(null) }
     var deleteTarget by remember { mutableStateOf<FolderSummary?>(null) }
+
+    fun shareFolder(folder: FolderSummary) {
+        scope.launch {
+            shareLibrary(context, container, setOf(folder.id), "Share ${folder.name}")
+        }
+    }
 
     fun submitCreate() {
         val name = newFolderName
@@ -126,7 +136,8 @@ fun FoldersRoute(
         onGoToReader = onGoToReader,
         onRename = { renameTarget = it },
         onDelete = { deleteTarget = it },
-        libraryContent = { LibrarySection(container, hasFolders = folders.isNotEmpty()) },
+        onShareFolder = ::shareFolder,
+        libraryContent = { LibrarySection(container, folders) },
     )
 
     renameTarget?.let { target ->
@@ -175,6 +186,7 @@ private fun FoldersScreen(
     onGoToReader: () -> Unit,
     onRename: (FolderSummary) -> Unit,
     onDelete: (FolderSummary) -> Unit,
+    onShareFolder: (FolderSummary) -> Unit,
     libraryContent: @Composable () -> Unit,
 ) {
     val typography = LocalHadithTypography.current
@@ -205,8 +217,8 @@ private fun FoldersScreen(
         }
         item {
             Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
-                SectionHeader(
-                    eyebrow = "Folders",
+                EditorialSectionHeader(
+                    title = "Folders",
                     action = if (!creatingFolder) {
                         { NewFolderField(expanded = false, onExpandedChange = onCreatingFolderChange, value = newFolderName, onValueChange = onNewFolderNameChange, onSubmit = onCreateFolder) }
                     } else {
@@ -231,15 +243,16 @@ private fun FoldersScreen(
         item {
             Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
                 if (folders.isEmpty()) {
-                    EmptyFoldersCard(onGoToReader)
+                    EmptyFoldersState()
                 } else {
-                    GroupedList {
+                    Column {
                         folders.forEachIndexed { index, folder ->
                             FolderRow(
                                 folder = folder,
                                 onOpen = { onOpenFolder(folder.id) },
                                 onRename = { onRename(folder) },
                                 onDelete = { onDelete(folder) },
+                                onShare = { onShareFolder(folder) },
                             )
                             if (index < folders.lastIndex) RowDivider()
                         }
@@ -250,8 +263,8 @@ private fun FoldersScreen(
         item {
             Spacer(Modifier.height(HadithSpacing.section))
             Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
-                SectionHeader(
-                    eyebrow = "Backup",
+                EditorialSectionHeader(
+                    title = "Backup",
                     lede = "Keep a copy of your bookmarks, or move them to another device.",
                 )
             }
@@ -263,39 +276,61 @@ private fun FoldersScreen(
 }
 
 @Composable
-private fun EmptyFoldersCard(onGoToReader: () -> Unit) {
+private fun EditorialSectionHeader(
+    title: String,
+    lede: String? = null,
+    action: (@Composable () -> Unit)? = null,
+) {
     val colors = LocalHadithColors.current
-    HadithCard(contentPadding = PaddingValues(24.dp)) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier.size(48.dp).background(colors.accentSoft, RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(HadithIcons.bookmark),
-                    contentDescription = null,
-                    tint = colors.accent,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(text = "No folders yet", style = LocalHadithTypography.current.panelTitle, color = colors.text)
-            Spacer(Modifier.height(6.dp))
+    val typography = LocalHadithTypography.current
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                text = "Open a Hadith and tap Save, or tap New folder above.",
-                color = colors.muted,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
+                text = title,
+                style = typography.sectionTitle,
+                color = colors.text,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.height(16.dp))
-            HadithPrimaryButton(text = "Read a Hadith", onClick = onGoToReader)
+            if (action != null) action()
         }
+        if (lede != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(text = lede, style = typography.helper, color = colors.muted)
+        }
+    }
+}
+
+@Composable
+private fun EmptyFoldersState() {
+    val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(
+            text = "No folders yet",
+            style = typography.helper.copy(fontWeight = FontWeight.Medium),
+            color = colors.textSoft,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Folders are created when you save a Hadith or tap New Folder.",
+            style = typography.helper,
+            color = colors.muted,
+        )
     }
 }
 
 /** §R1.5: replaces the old folder-card grid with one grouped-list row. */
 @Composable
-private fun FolderRow(folder: FolderSummary, onOpen: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun FolderRow(
+    folder: FolderSummary,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
     var menuOpen by remember { mutableStateOf(false) }
@@ -324,15 +359,15 @@ private fun FolderRow(folder: FolderSummary, onOpen: () -> Unit, onRename: () ->
         Column(Modifier.weight(1f)) {
             Text(
                 text = folder.name,
-                style = typography.panelTitle.copy(fontSize = 20.sp),
+                style = typography.optionLabel.copy(fontWeight = FontWeight.Medium),
                 color = colors.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = if (folder.count == 1) "1 Hadith" else "${folder.count} Hadiths",
+                style = typography.helper,
                 color = colors.muted,
-                fontSize = 13.sp,
             )
         }
         Box {
@@ -345,6 +380,7 @@ private fun FolderRow(folder: FolderSummary, onOpen: () -> Unit, onRename: () ->
                 )
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(text = { Text("Share") }, onClick = { menuOpen = false; onShare() })
                 DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; onRename() })
                 DropdownMenuItem(text = { Text("Delete", color = colors.error) }, onClick = { menuOpen = false; onDelete() })
             }
@@ -359,7 +395,8 @@ private fun libraryFileName(): String = "hadith-pull-library-${LocalDate.now()}.
  * a grouped list, moved out of primary visual weight so it doesn't compete with folder browsing
  * (the "shown poorly" bug). */
 @Composable
-private fun LibrarySection(container: AppContainer, hasFolders: Boolean) {
+@OptIn(ExperimentalMaterial3Api::class)
+private fun LibrarySection(container: AppContainer, folders: List<FolderSummary>) {
     val context = LocalContext.current
     val toastState = LocalToastState.current
     val scope = rememberCoroutineScope()
@@ -367,6 +404,12 @@ private fun LibrarySection(container: AppContainer, hasFolders: Boolean) {
     var pendingImport by remember { mutableStateOf<LibraryExportDocument?>(null) }
     var emptyImport by remember { mutableStateOf(false) }
     var importSummary by remember { mutableStateOf<String?>(null) }
+    var shareChoiceOpen by remember { mutableStateOf(false) }
+    var folderPickerOpen by remember { mutableStateOf(false) }
+    var selectedFolderIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    val typography = LocalHadithTypography.current
+    val colors = LocalHadithColors.current
+    val pickerState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/html")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -395,43 +438,115 @@ private fun LibrarySection(container: AppContainer, hasFolders: Boolean) {
     }
 
     fun requireFolders(action: () -> Unit) {
-        if (hasFolders) action() else toastState.show("No bookmarks to export yet.")
+        if (folders.isNotEmpty()) action() else toastState.show("No bookmarks to export yet.")
     }
 
-    GroupedList {
+    Column {
         ListRow(
-            title = "Export to a file",
+            title = "Export Library",
             subtitle = "Save a readable copy you can import later",
             onClick = { requireFolders { exportLauncher.launch(libraryFileName()) } },
             trailing = { ChevronTrailing() },
+            compact = true,
         )
         RowDivider()
         ListRow(
-            title = "Share library file",
-            subtitle = "Send it to another app or device",
-            onClick = {
-                requireFolders {
-                    scope.launch {
-                        val html = LibraryExport.buildDocument(container.bookmarkRepository)
-                        val uri = writeLibraryToCache(context, html, libraryFileName())
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/html"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(send, "Share your library"))
-                    }
-                }
-            },
+            title = "Share Library",
+            subtitle = "Share your full library or selected folders",
+            onClick = { requireFolders { shareChoiceOpen = true } },
             trailing = { ChevronTrailing() },
+            compact = true,
         )
         RowDivider()
         ListRow(
-            title = "Import a library file",
+            title = "Import Library",
             subtitle = "Add folders from a Hadith Pull file",
             onClick = { importLauncher.launch(arrayOf("text/html")) },
             trailing = { ChevronTrailing() },
+            compact = true,
         )
+    }
+
+    if (shareChoiceOpen) {
+        AlertDialog(
+            onDismissRequest = { shareChoiceOpen = false },
+            title = { Text("Share Library", style = typography.sectionTitle.copy(fontSize = 20.sp)) },
+            text = { Text("Share your entire library, or choose specific folders.", style = typography.helper) },
+            confirmButton = {
+                TextButton(onClick = {
+                    shareChoiceOpen = false
+                    scope.launch { shareLibrary(context, container, null, "Share your full library") }
+                }) { Text("Share full library", style = typography.secondaryAction) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { shareChoiceOpen = false }) { Text("Cancel", style = typography.secondaryAction) }
+                    TextButton(onClick = {
+                        selectedFolderIds = emptySet()
+                        shareChoiceOpen = false
+                        folderPickerOpen = true
+                    }) { Text("Choose folders", style = typography.secondaryAction, color = colors.accent) }
+                }
+            },
+        )
+    }
+
+    if (folderPickerOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { folderPickerOpen = false },
+            sheetState = pickerState,
+            containerColor = colors.bg,
+            dragHandle = { BottomSheetDefaults.DragHandle(width = 36.dp, height = 4.dp, color = colors.borderStrong) },
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 20.dp)) {
+                Text("Choose folders", style = typography.sectionTitle.copy(fontSize = 20.sp), color = colors.text)
+                Spacer(Modifier.height(4.dp))
+                Text("Only selected folders will be included.", style = typography.helper, color = colors.muted)
+                Spacer(Modifier.height(12.dp))
+                Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
+                    folders.forEach { folder ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable {
+                                selectedFolderIds = if (folder.id in selectedFolderIds) {
+                                    selectedFolderIds - folder.id
+                                } else {
+                                    selectedFolderIds + folder.id
+                                }
+                            }.padding(horizontal = 4.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(folder.name, style = typography.optionLabel, color = colors.text)
+                                Text(
+                                    if (folder.count == 1) "1 Hadith" else "${folder.count} Hadiths",
+                                    style = typography.helper.copy(fontSize = 12.5.sp),
+                                    color = colors.muted,
+                                )
+                            }
+                            Checkbox(
+                                checked = folder.id in selectedFolderIds,
+                                onCheckedChange = { checked ->
+                                    selectedFolderIds = if (checked) selectedFolderIds + folder.id else selectedFolderIds - folder.id
+                                },
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                androidx.compose.material3.Button(
+                    onClick = {
+                        val chosen = selectedFolderIds
+                        folderPickerOpen = false
+                        scope.launch { shareLibrary(context, container, chosen, "Share selected folders") }
+                    },
+                    enabled = selectedFolderIds.isNotEmpty(),
+                    shape = HadithShapes.pill,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Text("Share ${selectedFolderIds.size} folder${if (selectedFolderIds.size == 1) "" else "s"}", style = typography.secondaryAction)
+                }
+            }
+        }
     }
 
     pendingImport?.let { doc ->
@@ -479,4 +594,24 @@ private fun LibrarySection(container: AppContainer, hasFolders: Boolean) {
             confirmButton = { TextButton(onClick = { importSummary = null }) { Text("OK") } },
         )
     }
+}
+
+private suspend fun shareLibrary(
+    context: android.content.Context,
+    container: AppContainer,
+    folderIds: Set<Long>?,
+    chooserTitle: String,
+) {
+    val html = if (folderIds == null) {
+        LibraryExport.buildDocument(container.bookmarkRepository)
+    } else {
+        LibraryExport.buildDocument(container.bookmarkRepository, folderIds)
+    }
+    val uri = writeLibraryToCache(context, html, libraryFileName())
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/html"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(send, chooserTitle))
 }

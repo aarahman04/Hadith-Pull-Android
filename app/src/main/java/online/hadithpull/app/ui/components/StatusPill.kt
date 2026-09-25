@@ -11,11 +11,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import online.hadithpull.app.domain.PrimaryGrade
 import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.theme.LocalHadithTypography
 import online.hadithpull.app.ui.theme.statusPillColors
 
 /** §4/H8: text = primary.grade verbatim; null means no pill (the "Unclassified" fallback is deleted). */
@@ -23,6 +22,7 @@ import online.hadithpull.app.ui.theme.statusPillColors
 fun StatusPill(primary: PrimaryGrade?, darkTheme: Boolean, modifier: Modifier = Modifier) {
     if (primary == null) return
     val colors = statusPillColors(primary.cat, darkTheme)
+    val typography = LocalHadithTypography.current
     Row(
         modifier = modifier
             .background(colors.background, HadithShapes.pill)
@@ -39,8 +39,7 @@ fun StatusPill(primary: PrimaryGrade?, darkTheme: Boolean, modifier: Modifier = 
             text = primary.grade,
             modifier = Modifier.padding(start = 6.dp),
             color = colors.foreground,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 12.5.sp,
+            style = typography.statusLabel,
         )
     }
 }

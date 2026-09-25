@@ -85,6 +85,7 @@ fun ReferenceSummary(
                 trailingIcon = painterResource(HadithIcons.openInNew),
                 enabled = sunnahUrl != null,
                 modifier = Modifier.alpha(if (sunnahUrl != null) 1f else 0f),
+                compact = true,
             )
         }
     }
