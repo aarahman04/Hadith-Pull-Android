@@ -47,6 +47,7 @@ import online.hadithpull.app.data.CreateFolderResult
 import online.hadithpull.app.data.FolderSummary
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.ui.components.HadithIcons
+import online.hadithpull.app.ui.components.ToastHost
 import online.hadithpull.app.ui.components.ToastState
 import online.hadithpull.app.ui.theme.HadithShapes
 import online.hadithpull.app.ui.theme.LocalHadithColors
@@ -95,6 +96,7 @@ fun SaveSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
+        Box(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Text(text = "Save to a folder", style = typography.sheetTitle, color = colors.text)
             Spacer(Modifier.height(6.dp))
@@ -162,6 +164,11 @@ fun SaveSheet(
                         onManageBookmarks()
                     },
             )
+        }
+        ToastHost(
+            state = toastState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+        )
         }
     }
 }

@@ -72,6 +72,7 @@ import online.hadithpull.app.share.shareToWhatsApp
 import online.hadithpull.app.share.writeCardToCache
 import online.hadithpull.app.ui.components.HadithIcons
 import online.hadithpull.app.ui.components.LocalToastState
+import online.hadithpull.app.ui.components.ToastHost
 import online.hadithpull.app.ui.components.ToastState
 import online.hadithpull.app.ui.theme.HadithShapes
 import online.hadithpull.app.ui.theme.LocalHadithColors
@@ -212,9 +213,11 @@ private fun ShareSheet(
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
     val hasImage = bitmap != null
+    val toastState = LocalToastState.current
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Box(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Text(text = "Share this Hadith", style = typography.sheetTitle, color = colors.text)
             Spacer(Modifier.height(4.dp))
@@ -293,6 +296,11 @@ private fun ShareSheet(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        ToastHost(
+            state = toastState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+        )
         }
     }
 }
