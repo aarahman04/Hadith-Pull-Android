@@ -20,7 +20,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.Settings
-import online.hadithpull.app.data.prefs.TextSize
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.text.plainText
@@ -54,17 +53,11 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
         uiState = uiState,
         darkTheme = darkTheme,
         arabicScript = settings.arabicScript,
-        textSize = settings.textSize,
         isSaved = isSaved,
         onDraw = viewModel::draw,
         onToggleExpand = viewModel::toggleExpand,
         onSetArabicScript = { script ->
             scope.launch { container.settingsRepository.setArabicScript(script) }
-        },
-        onCycleTextSize = {
-            val next = cycleTextSize(settings.textSize)
-            scope.launch { container.settingsRepository.setTextSize(next) }
-            toastState.show("Text size: ${next.label}")
         },
         onCopy = { hadith -> copyToClipboard(context, hadith) },
         onOpenSave = { hadith -> saveSheetHadith = hadith },
@@ -87,14 +80,6 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
     shareSheetHadith?.let { hadith ->
         ShareRoute(container = container, hadith = hadith, onDismiss = { shareSheetHadith = null })
     }
-}
-
-private val TextSize.label: String
-    get() = name.lowercase().replaceFirstChar { it.uppercase() }
-
-private fun cycleTextSize(current: TextSize): TextSize {
-    val values = TextSize.entries
-    return values[(values.indexOf(current) + 1) % values.size]
 }
 
 // R3-Q3: the Copy action confirms inline (label -> "Copied") on every API level, so no toast or

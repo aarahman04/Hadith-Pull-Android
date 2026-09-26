@@ -12,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
@@ -48,8 +49,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,15 +59,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
@@ -78,7 +74,6 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.ArabicScript
-import online.hadithpull.app.data.prefs.TextSize
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.DRAW_FAILURE_MESSAGE
 import online.hadithpull.app.domain.text.buildExcerpt
@@ -111,11 +106,9 @@ fun ReaderScreen(
     uiState: ReaderUiState,
     darkTheme: Boolean,
     arabicScript: ArabicScript,
-    textSize: TextSize,
     onDraw: () -> Unit,
     onToggleExpand: () -> Unit,
     onSetArabicScript: (ArabicScript) -> Unit,
-    onCycleTextSize: () -> Unit,
     isSaved: Boolean,
     onCopy: (Hadith) -> Unit,
     onOpenSave: (Hadith) -> Unit,
@@ -137,13 +130,13 @@ fun ReaderScreen(
             }
         }
 
-        // R0.3: expand/collapse scrolls so the sticky reading bar pins and the narration starts
-        // directly under it, replacing the old bringIntoView behaviour.
+        // Return to the start of the reading list so the script selector, when shown,
+        // occupies its own space above the narration.
         val onToggleExpandWithScroll: () -> Unit = {
             onToggleExpand()
             scope.launch {
                 withFrameNanos { }
-                listState.animateScrollToItem(1)
+                listState.animateScrollToItem(0)
             }
         }
 
@@ -158,9 +151,7 @@ fun ReaderScreen(
                         uiState = uiState,
                         darkTheme = darkTheme,
                         arabicScript = arabicScript,
-                        textSize = textSize,
                         onSetArabicScript = onSetArabicScript,
-                        onCycleTextSize = onCycleTextSize,
                         onToggleExpand = onToggleExpandWithScroll,
                     )
                 }
@@ -181,9 +172,7 @@ fun ReaderScreen(
                         uiState = uiState,
                         darkTheme = darkTheme,
                         arabicScript = arabicScript,
-                        textSize = textSize,
                         onSetArabicScript = onSetArabicScript,
-                        onCycleTextSize = onCycleTextSize,
                         onToggleExpand = onToggleExpandWithScroll,
                         trailingDockContent = {
                             ReaderDockContent(
@@ -204,9 +193,7 @@ fun ReaderScreen(
     }
 }
 
-/** R1.4: the ONLY scrolling region -- hero, a sticky reading bar, the narration, and (docked
- * mode only) the attribution line. In stacked mode `trailingDockContent` appends the dock's own
- * content as an ordinary last item instead of a fixed sibling. */
+/** The hero remains above the scrolling narration; short screens scroll their dock content too. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReaderContentList(
@@ -214,9 +201,7 @@ private fun ReaderContentList(
     uiState: ReaderUiState,
     darkTheme: Boolean,
     arabicScript: ArabicScript,
-    textSize: TextSize,
     onSetArabicScript: (ArabicScript) -> Unit,
-    onCycleTextSize: () -> Unit,
     onToggleExpand: () -> Unit,
     trailingDockContent: (@Composable () -> Unit)? = null,
 ) {
@@ -225,16 +210,9 @@ private fun ReaderContentList(
     val sidePadding = if (windowWidthDp < 720) 16.dp else 20.dp
     val showScriptToggle = (uiState as? ReaderUiState.Loaded)
         ?.let { it.expanded && hasArabicWorthShowing(it.hadith.arabic) } == true
-    // Keep the sticky reading tool on one stable surface. Changing its opacity when the list
-    // scrolls makes the control appear to flicker or reactivate even when it was not touched.
-    val barBackground = colors.bg.copy(alpha = 0.96f)
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize().padding(horizontal = sidePadding),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        item("hero") {
+    Column(Modifier.fillMaxSize().padding(horizontal = sidePadding)) {
+        Column(Modifier.fillMaxWidth()) {
             Spacer(Modifier.height(HadithSpacing.xl))
             ScreenHero(
                 eyebrow = "HADITH OF THE MOMENT",
@@ -244,109 +222,65 @@ private fun ReaderContentList(
             )
             Spacer(Modifier.height(16.dp))
         }
-        stickyHeader("bar") {
-            Box(Modifier.fillMaxWidth().background(barBackground).padding(vertical = 8.dp)) {
-                ReadingBar(showScriptToggle, arabicScript, textSize, onSetArabicScript, onCycleTextSize)
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            stickyHeader("script") {
+                AnimatedVisibility(
+                    visible = showScriptToggle,
+                    enter = expandVertically(tween(900, easing = FastOutSlowInEasing)) + fadeIn(tween(900, easing = FastOutSlowInEasing)),
+                    exit = shrinkVertically(tween(900, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut(tween(900, easing = FastOutSlowInEasing)),
+                ) {
+                    Box(Modifier.fillMaxWidth().background(colors.bg.copy(alpha = 0.96f)).padding(vertical = 4.dp)) {
+                        ArabicScriptBar(arabicScript, onSetArabicScript)
+                    }
+                }
+            }
+            item("narration") {
+                Spacer(Modifier.height(HadithSpacing.xl))
+                NarrationBlock(uiState, darkTheme, windowWidthDp, onToggleExpand)
+                Spacer(Modifier.height(HadithSpacing.xxl))
+            }
+            if (trailingDockContent != null) {
+                item("dock") { trailingDockContent() }
             }
         }
-        item("narration") {
-            Spacer(Modifier.height(HadithSpacing.xl))
-            NarrationBlock(uiState, darkTheme, windowWidthDp, onToggleExpand)
-            Spacer(Modifier.height(HadithSpacing.xxl))
-        }
-        if (trailingDockContent != null) {
-            item("dock") { trailingDockContent() }
-        }
     }
 }
 
 @Composable
-private fun ReadingBar(
-    showScriptToggle: Boolean,
-    arabicScript: ArabicScript,
-    textSize: TextSize,
-    onSetArabicScript: (ArabicScript) -> Unit,
-    onCycleTextSize: () -> Unit,
-) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        ReadingModeControl(showScriptToggle, arabicScript, textSize, onSetArabicScript, onCycleTextSize)
-    }
-}
-
-/** Round 3 §Step 29.3: the reading-mode control reads as one segmented pill (script + text size),
- * not two separately styled chips. */
-@Composable
-private fun ReadingModeControl(
-    showScriptToggle: Boolean,
-    arabicScript: ArabicScript,
-    textSize: TextSize,
-    onSetArabicScript: (ArabicScript) -> Unit,
-    onCycleTextSize: () -> Unit,
-) {
+private fun ArabicScriptBar(arabicScript: ArabicScript, onSetArabicScript: (ArabicScript) -> Unit) {
     val colors = LocalHadithColors.current
-    val textSizeInteractionSource = remember { MutableInteractionSource() }
-    val textSizePressed by textSizeInteractionSource.collectIsPressedAsState()
-    val textSizePressScale by animateFloatAsState(
-        targetValue = if (textSizePressed) 0.98f else 1f,
-        animationSpec = tween(120),
-        label = "textSizePressScale",
-    )
-    Row(
-        modifier = Modifier
-            .height(40.dp)
-            .background(colors.surfaceSolid, HadithShapes.pill)
-            .border(1.dp, colors.border, HadithShapes.pill)
-            .padding(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (showScriptToggle) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .background(colors.surfaceSolid, HadithShapes.pill)
+                .border(1.dp, colors.border, HadithShapes.pill)
+                .padding(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             ArabicScript.entries.forEach { script ->
                 val selected = script == arabicScript
+                val label = script.name.lowercase().replaceFirstChar { it.uppercase() }
                 Box(
                     modifier = Modifier
-                        .height(34.dp)
+                        .heightIn(min = 26.dp)
                         .clip(HadithShapes.pill)
                         .background(if (selected) colors.accentSoft else Color.Transparent)
-                        .clickable { onSetArabicScript(script) }
-                        .padding(horizontal = 12.dp),
+                        .clickable(onClickLabel = "Arabic script: $label") { onSetArabicScript(script) }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = script.name.lowercase().replaceFirstChar { it.uppercase() },
+                        text = label,
                         color = if (selected) colors.accentInk else colors.muted,
-                        fontSize = 14.sp,
+                        fontSize = 12.5.sp,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     )
                 }
-            }
-            Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(20.dp).background(colors.borderStrong))
-        }
-
-        val typography = LocalHadithTypography.current
-        val label = textSize.name.lowercase().replaceFirstChar { it.uppercase() }
-        Row(
-            modifier = Modifier
-                .height(34.dp)
-                .clip(HadithShapes.pill)
-                // Size has no persistent fill: only the interaction source drives a brief
-                // press scale, so recomposition and scrolling cannot leave a highlight behind.
-                .graphicsLayer {
-                    scaleX = textSizePressScale
-                    scaleY = textSizePressScale
-                }
-                .clickable(
-                    interactionSource = textSizeInteractionSource,
-                    indication = null,
-                    onClickLabel = "Change text size",
-                    onClick = onCycleTextSize,
-                )
-                .padding(horizontal = 12.dp)
-                .semantics { contentDescription = "Text size: $label" },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = "Aa", fontFamily = typography.heroTitle.fontFamily, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = colors.text)
-            if (!showScriptToggle) {
-                Text(text = " $label", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = colors.muted)
             }
         }
     }
@@ -362,6 +296,12 @@ private fun NarrationBlock(
     Box(Modifier.fillMaxWidth()) {
         AnimatedContent(
             targetState = uiState,
+            contentKey = { state ->
+                when (state) {
+                    is ReaderUiState.Loaded -> state.hadith.key
+                    else -> state
+                }
+            },
             transitionSpec = {
                 val initialKey = (initialState as? ReaderUiState.Loaded)?.hadith?.key
                 val targetKey = (targetState as? ReaderUiState.Loaded)?.hadith?.key
@@ -464,7 +404,11 @@ private fun LoadedNarrationContent(
     onToggleExpand: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        AnimatedVisibility(visible = state.expanded && hasArabic, enter = expandVertically() + fadeIn(tween(500))) {
+        AnimatedVisibility(
+            visible = state.expanded && hasArabic,
+            enter = expandVertically(tween(900, easing = FastOutSlowInEasing)) + fadeIn(tween(900, easing = FastOutSlowInEasing)),
+            exit = shrinkVertically(tween(900, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut(tween(900, easing = FastOutSlowInEasing)),
+        ) {
             Column {
                 Text(text = "ARABIC", style = typography.sectionLabel, color = colors.muted)
                 Spacer(Modifier.height(8.dp))
@@ -489,7 +433,7 @@ private fun LoadedNarrationContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(tween(450)),
+                .animateContentSize(tween(900, easing = FastOutSlowInEasing)),
         ) {
             englishParagraphs.forEachIndexed { index, paragraph ->
                 if (index > 0) Spacer(Modifier.height(18.dp))
@@ -514,9 +458,15 @@ private fun LoadedNarrationContent(
             )
         }
 
-        if (state.expanded) {
-            Spacer(Modifier.height(24.dp))
-            FullReference(hadith, darkTheme)
+        AnimatedVisibility(
+            visible = state.expanded,
+            enter = expandVertically(tween(900, easing = FastOutSlowInEasing)) + fadeIn(tween(900, easing = FastOutSlowInEasing)),
+            exit = shrinkVertically(tween(900, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) + fadeOut(tween(900, easing = FastOutSlowInEasing)),
+        ) {
+            Column {
+                Spacer(Modifier.height(24.dp))
+                FullReference(hadith, darkTheme)
+            }
         }
     }
 }
@@ -525,31 +475,37 @@ private fun LoadedNarrationContent(
 private fun ExpandToggle(expanded: Boolean, hasExcerpt: Boolean, hasArabic: Boolean, wordCount: Int, onToggle: () -> Unit) {
     val colors = LocalHadithColors.current
     val rotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, animationSpec = tween(350), label = "chevron")
-    Row(
+    Box(
         modifier = Modifier
-            .clickable(onClick = onToggle)
-            .background(colors.surfaceSolid, HadithShapes.pill)
-            .border(1.dp, colors.borderStrong, HadithShapes.pill)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .heightIn(min = 44.dp)
+            .clip(HadithShapes.pill)
+            .clickable(onClick = onToggle),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        val label = when {
-            expanded -> "Show less"
-            hasExcerpt -> "Show full Hadith"
-            else -> "Show Arabic"
+        Row(
+            modifier = Modifier
+                .border(1.dp, colors.borderStrong, HadithShapes.pill)
+                .padding(horizontal = 11.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val label = when {
+                expanded -> "Show less"
+                hasExcerpt -> "Show full Hadith"
+                else -> "Show Arabic"
+            }
+            Text(text = label, color = colors.textSoft, fontSize = 12.5.sp, fontWeight = FontWeight.Medium)
+            if (!expanded && hasExcerpt) {
+                Text(text = " · $wordCount words", color = colors.muted, fontSize = 12.5.sp)
+                if (hasArabic) Text(text = " · Arabic", color = colors.muted, fontSize = 12.5.sp)
+            }
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                tint = colors.textSoft,
+                modifier = Modifier.rotate(rotation).size(14.dp),
+            )
         }
-        Text(text = label, color = colors.textSoft, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-        if (!expanded && hasExcerpt) {
-            Text(text = " · $wordCount words", color = colors.muted, fontSize = 14.sp)
-            if (hasArabic) Text(text = " · Arabic", color = colors.muted, fontSize = 14.sp)
-        }
-        Spacer(Modifier.width(6.dp))
-        Icon(
-            imageVector = Icons.Filled.KeyboardArrowDown,
-            contentDescription = null,
-            tint = colors.textSoft,
-            modifier = Modifier.rotate(rotation).size(16.dp),
-        )
     }
 }
 

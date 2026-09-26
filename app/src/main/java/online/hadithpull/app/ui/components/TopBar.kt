@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -35,8 +36,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import online.hadithpull.app.R
@@ -44,6 +48,7 @@ import online.hadithpull.app.data.prefs.Theme
 import online.hadithpull.app.ui.theme.LocalHadithColors
 
 private val brandTileFill = Color(0xFFF6F2EA)
+private val headerActionSize = 44.dp
 
 /** U4: 30dp tile, 9dp radius, 1dp borderStrong border, same fill in both themes; brand_logo at 24dp. */
 @Composable
@@ -76,6 +81,7 @@ fun HadithTopBar(
     theme: Theme,
     onToggleTheme: () -> Unit,
     onSetTheme: (Theme) -> Unit,
+    onOpenReadingPreferences: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalHadithColors.current
@@ -97,7 +103,56 @@ fun HadithTopBar(
             fontSize = 16.sp,
         )
         Spacer(Modifier.weight(1f))
-        ThemeToggleButton(darkTheme = darkTheme, theme = theme, onToggle = onToggleTheme, onSetTheme = onSetTheme)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (onOpenReadingPreferences != null) {
+                HeaderAction(onClick = onOpenReadingPreferences, onClickLabel = "Reading appearance") {
+                    Text(
+                        text = "Aa",
+                        color = colors.textSoft,
+                        style = TextStyle(
+                            fontSize = 17.sp,
+                            lineHeight = 17.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.sp,
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        ),
+                    )
+                }
+            }
+            ThemeToggleButton(
+                darkTheme = darkTheme,
+                theme = theme,
+                onToggle = onToggleTheme,
+                onSetTheme = onSetTheme,
+                actionSize = if (onOpenReadingPreferences != null) headerActionSize else 48.dp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeaderAction(
+    onClick: () -> Unit,
+    onClickLabel: String,
+    size: Dp = headerActionSize,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                onClickLabel = onClickLabel,
+                onLongClickLabel = onLongClickLabel,
+                role = Role.Button,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
     }
 }
 
@@ -141,23 +196,17 @@ fun HadithBackTopBar(
  * only way back to "System" once the header toggle has been tapped, since About's Appearance
  * section is removed this round. */
 @Composable
-private fun ThemeToggleButton(darkTheme: Boolean, theme: Theme, onToggle: () -> Unit, onSetTheme: (Theme) -> Unit) {
+private fun ThemeToggleButton(darkTheme: Boolean, theme: Theme, onToggle: () -> Unit, onSetTheme: (Theme) -> Unit, actionSize: Dp) {
     val colors = LocalHadithColors.current
     val icon: Painter = painterResource(if (darkTheme) HadithIcons.moon else HadithIcons.sun)
     var menuOpen by remember { mutableStateOf(false) }
     Box {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .combinedClickable(
-                    onClick = onToggle,
-                    onLongClick = { menuOpen = true },
-                    onClickLabel = "Toggle dark mode",
-                    onLongClickLabel = "Choose theme",
-                    role = Role.Button,
-                ),
-            contentAlignment = Alignment.Center,
+        HeaderAction(
+            onClick = onToggle,
+            size = actionSize,
+            onLongClick = { menuOpen = true },
+            onClickLabel = "Toggle dark mode",
+            onLongClickLabel = "Choose theme",
         ) {
             Icon(painter = icon, contentDescription = "Toggle dark mode", tint = colors.textSoft, modifier = Modifier.size(20.dp))
         }

@@ -17,7 +17,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -31,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import online.hadithpull.app.data.prefs.Settings
 import online.hadithpull.app.data.prefs.Theme
@@ -47,6 +53,7 @@ import online.hadithpull.app.ui.components.LocalToastState
 import online.hadithpull.app.ui.components.ToastHost
 import online.hadithpull.app.ui.components.rememberToastState
 import online.hadithpull.app.ui.reader.ReaderRoute
+import online.hadithpull.app.ui.reader.ReadingPreferencesSheet
 
 /** §2.1: the three bottom-nav tab roots. Folder detail and Licenses (later steps) push on top of these. */
 sealed interface TabRoute {
@@ -90,6 +97,8 @@ fun AppNav(
 ) {
     val navController = rememberNavController()
     val toastState = rememberToastState()
+    val scope = rememberCoroutineScope()
+    var readingPreferencesOpen by remember { mutableStateOf(false) }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
@@ -101,6 +110,9 @@ fun AppNav(
         currentDestination?.hasRoute<LicensesDetailRoute>() == true -> Tab.ABOUT
         currentDestination?.hasRoute<PrivacyDetailRoute>() == true -> Tab.ABOUT
         else -> null
+    }
+    LaunchedEffect(currentTab) {
+        if (currentTab != Tab.READER) readingPreferencesOpen = false
     }
     // Only a tab ROOT jumps straight to Reader on back (rule 3); a pushed screen like
     // Folder detail pops within its tab instead (rule 2), via the default back behaviour.
@@ -141,6 +153,9 @@ fun AppNav(
                     theme = settings.theme,
                     onToggleTheme = onToggleTheme,
                     onSetTheme = onSetTheme,
+                    onOpenReadingPreferences = if (currentTab == Tab.READER) {
+                        { readingPreferencesOpen = true }
+                    } else null,
                 )
             }
         },
@@ -204,6 +219,13 @@ fun AppNav(
                 )
             }
         }
+    }
+    if (readingPreferencesOpen && currentTab == Tab.READER) {
+        ReadingPreferencesSheet(
+            textSize = settings.textSize,
+            onSetTextSize = { size -> scope.launch { container.settingsRepository.setTextSize(size) } },
+            onDismiss = { readingPreferencesOpen = false },
+        )
     }
 }
 

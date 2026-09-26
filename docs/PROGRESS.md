@@ -1225,3 +1225,22 @@ segmented control at various widths, the Save sheet's hide-then-dismiss animatio
 LazyColumn scroll fix, the two-level DropdownMenu in Folder detail's overflow) has no JVM-testable
 surface in this project and is a device-pass item for the user, consistent with every step's own
 report above.
+
+## 2026-09-26 -- Read screen and app icon follow-up
+
+**Read screen:**
+- Removed the large inline `Aa Comfortable` reading-size control. A compact 17 sp `Aa` action now sits beside the theme icon in the top bar; both actions have centered 44 dp touch targets.
+- Added a reading appearance bottom sheet for the existing `TextSize` choices. It updates the narration through the existing `SettingsRepository` and persists the selection without a second preference system.
+- Kept `HADITH OF THE MOMENT` and `Read. Reflect. Remember.` fixed above the scrolling narration, per the user's revised direction. The compact top bar remains fixed, and the reference/action dock remains fixed on normal-height screens.
+- Made the Naskh/Clear/Bold Arabic script selector smaller and available while Arabic is expanded. Changed Show Arabic / Show less to a slimmer outlined disclosure with a 44 dp tap area.
+- Kept the current Hadith mounted during expansion so Arabic can animate in place. Arabic text, script selector, expanded reference, and narration height now use coordinated 900 ms opening and closing transitions. The New Hadith reveal remains in place.
+
+**App icon and startup:**
+- Replaced the legacy density and round launcher icons with the supplied `logos and favicons/hadith-pull-logo_app.png`.
+- Added `drawable-nodpi/hadith_pull_adaptive_icon.png`, a padded adaptive/splash asset. Its center contains the supplied 512 x 512 image pixel-for-pixel; the padding keeps the smaller Ha and source margins visible within Android's icon mask.
+- Updated adaptive icon XML and both startup themes to use the padded asset. The splash icon backdrop matches the image's cream color.
+
+**Validation and release state:**
+- `:app:assembleDebug` and `git diff --check` pass after the icon correction. `:app:lintDebug` passed during the Read-screen changes. No new automated tests were added.
+- Installed the APK on the emulator and visually checked the Read screen in dark and light modes, Arabic expansion, header actions, and the corrected app-drawer icon. Pixel Launcher's suggested-app slot can retain an older cached thumbnail; the installed app-drawer icon shows the corrected image.
+- The user explicitly requested this session's commit and push. The release workflow in `.github/workflows/release.yml` is manual-only and was not started; more features are planned before release.
