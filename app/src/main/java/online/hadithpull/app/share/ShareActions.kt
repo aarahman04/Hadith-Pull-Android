@@ -176,14 +176,14 @@ fun shareToFacebook(context: Context, uri: Uri) {
 
 sealed interface InstagramShareResult {
     data object Sent : InstagramShareResult
-    data class FellBackToSave(val result: SaveResult) : InstagramShareResult
+    data object Unavailable : InstagramShareResult
 }
 
-/** §3.4/S2: Instagram's own picker, then the web's save-and-toast fallback. */
-suspend fun shareToInstagram(context: Context, bitmap: Bitmap, uri: Uri, fileName: String): InstagramShareResult =
+/** Sends the card to Instagram's image composer when an Instagram share target is available. */
+fun shareToInstagram(context: Context, uri: Uri): InstagramShareResult =
     try {
-        context.startActivity(directImageIntent(uri, "com.instagram.android"))
+        context.startActivity(directImageIntent(uri, "com.instagram.android").apply { type = "image/*" })
         InstagramShareResult.Sent
     } catch (e: ActivityNotFoundException) {
-        InstagramShareResult.FellBackToSave(saveCardToDevice(context, bitmap, fileName))
+        InstagramShareResult.Unavailable
     }

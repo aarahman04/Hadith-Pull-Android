@@ -1244,3 +1244,22 @@ report above.
 - `:app:assembleDebug` and `git diff --check` pass after the icon correction. `:app:lintDebug` passed during the Read-screen changes. No new automated tests were added.
 - Installed the APK on the emulator and visually checked the Read screen in dark and light modes, Arabic expansion, header actions, and the corrected app-drawer icon. Pixel Launcher's suggested-app slot can retain an older cached thumbnail; the installed app-drawer icon shows the corrected image.
 - The user explicitly requested this session's commit and push. The release workflow in `.github/workflows/release.yml` is manual-only and was not started; more features are planned before release.
+
+## 2026-09-26 -- Save, Share, About, and toast refinements
+
+**Save to a folder sheet:**
+- Tightened the title, supporting text, empty state, folder rows, and action spacing while keeping the existing sheet structure and behavior.
+- Kept New Folder as a compact teal text action. Made the visible Done pill slimmer within an accessible touch target, and kept Manage all bookmarks visually tertiary.
+
+**Share sheet:**
+- Reduced the visible Share the image and Save to device pills and the social icon surfaces while retaining comfortable touch targets. Tightened the controls below the image preview and moved Include Arabic to the right of its row.
+- Instagram now attempts a direct image share to Instagram instead of silently saving the image when Instagram cannot open. An unavailable message guides the user to Share the image. The emulator does not have Instagram installed, so the Instagram composer itself was not verified.
+- Copy image now confirms a successful copy with a temporary checkmark, consistent with the Read screen's copy feedback.
+
+**About and feedback:**
+- Kept Contact focused on its message action. Moved GitHub, LinkedIn, and Instagram into a small, centered footer row directly below Version 1.2, preserving their links and touch targets.
+- Reduced the shared in-app toast's maximum width, padding, and text scale so Instagram and similar messages appear as smaller overlays.
+
+**Validation:**
+- Built and installed the debug app on the emulator and relaunched it after the UI changes. Visually checked the Save sheet, Share sheet, About footer, copy confirmation, and Instagram-unavailable message.
+- `:app:testDebugUnitTest --offline` and `git diff --check` passed. No new automated tests were added.

@@ -42,14 +42,15 @@ fun NewFolderField(
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     if (!expanded) {
         TertiaryLink(
             label = "New Folder",
             leadingIcon = rememberVectorPainter(Icons.Filled.Add),
             onClick = { onExpandedChange(true) },
-            modifier = modifier.heightIn(min = 48.dp),
-            compact = false,
+            modifier = modifier.heightIn(min = if (compact) 44.dp else 48.dp),
+            compact = compact,
         )
         return
     }

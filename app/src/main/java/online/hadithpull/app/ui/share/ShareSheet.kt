@@ -3,10 +3,8 @@ package online.hadithpull.app.ui.share
 import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,15 +23,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -46,17 +39,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import online.hadithpull.app.card.CardTheme
 import online.hadithpull.app.data.prefs.Settings
 import online.hadithpull.app.di.AppContainer
@@ -77,6 +75,7 @@ import online.hadithpull.app.ui.components.LocalToastState
 import online.hadithpull.app.ui.components.ToastHost
 import online.hadithpull.app.ui.components.ToastState
 import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.theme.HadithSpacing
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
 
@@ -97,6 +96,15 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
     val includeArabic by viewModel.includeArabic.collectAsState()
     val bitmap by viewModel.bitmap.collectAsState()
     val rendering by viewModel.rendering.collectAsState()
+    var imageCopied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(bitmap) { imageCopied = false }
+    LaunchedEffect(imageCopied) {
+        if (imageCopied) {
+            delay(2000)
+            imageCopied = false
+        }
+    }
 
     var pendingSaveFileName by remember { mutableStateOf<String?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -121,6 +129,7 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
         rendering = rendering,
         theme = theme,
         includeArabic = includeArabic,
+        imageCopied = imageCopied,
         showIncludeArabicOption = hadith.arabic.isNotEmpty(),
         onDismiss = onDismiss,
         onSetTheme = viewModel::setTheme,
@@ -164,16 +173,9 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
             scope.launch {
                 val name = fileName()
                 val uri = writeCardToCache(context, bmp, name)
-                when (val result = shareToInstagram(context, bmp, uri, name)) {
+                when (shareToInstagram(context, uri)) {
                     InstagramShareResult.Sent -> Unit
-                    is InstagramShareResult.FellBackToSave -> when (result.result) {
-                        SaveResult.Success -> toastState.show("Image saved. Post it from your gallery in Instagram.")
-                        SaveResult.Failure -> toastState.show("Could not save the card")
-                        SaveResult.PermissionNeeded -> {
-                            pendingSaveFileName = name
-                            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        }
-                    }
+                    InstagramShareResult.Unavailable -> toastState.show("Instagram unavailable. Try Share the image.")
                 }
             }
         },
@@ -181,7 +183,7 @@ fun ShareRoute(container: AppContainer, hadith: Hadith, onDismiss: () -> Unit) {
             val bmp = bitmap ?: return@ShareSheet
             scope.launch {
                 copyCardToClipboard(context, bmp, fileName())
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) toastState.show("Image copied to clipboard")
+                imageCopied = true
             }
         },
     )
@@ -201,6 +203,7 @@ private fun ShareSheet(
     rendering: Boolean,
     theme: CardTheme,
     includeArabic: Boolean,
+    imageCopied: Boolean,
     showIncludeArabicOption: Boolean,
     onDismiss: () -> Unit,
     onSetTheme: (CardTheme) -> Unit,
@@ -252,36 +255,44 @@ private fun ShareSheet(
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(HadithSpacing.md))
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 ThemeSegmentedControl(theme, onSetTheme)
                 if (showIncludeArabicOption) {
+                    Spacer(Modifier.weight(1f))
                     IncludeArabicChip(includeArabic, onSetIncludeArabic)
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(HadithSpacing.md))
 
-            Button(onClick = onShareImage, enabled = hasImage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("Share the image", style = typography.secondaryAction)
-            }
-            Spacer(Modifier.height(10.dp))
-            OutlinedButton(onClick = onSaveToDevice, enabled = hasImage, shape = HadithShapes.pill, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("Save to device", style = typography.secondaryAction)
-            }
-            Spacer(Modifier.height(18.dp))
+            ShareActionButton(
+                label = "Share the image",
+                enabled = hasImage,
+                filled = true,
+                onClick = onShareImage,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            ShareActionButton(
+                label = "Save to device",
+                enabled = hasImage,
+                filled = false,
+                onClick = onSaveToDevice,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+            Spacer(Modifier.height(HadithSpacing.sm))
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.height(if (isCompactGrid()) 176.dp else 88.dp),
+            Row(
+                modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth().align(Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                items(shareTargets) { target ->
+                shareTargets.forEach { target ->
                     ShareTargetCell(
                         target = target,
                         enabled = hasImage,
                         darkTheme = theme == CardTheme.DARK,
+                        copied = target == ShareTarget.COPY_IMAGE && imageCopied,
                         onClick = when (target) {
                             ShareTarget.WHATSAPP -> onWhatsApp
                             ShareTarget.FACEBOOK -> onFacebook
@@ -291,7 +302,7 @@ private fun ShareSheet(
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(HadithSpacing.sm))
 
             Text(
                 text = "The card carries the reference and hadithpull.online, so anyone you send it to can trace it back.",
@@ -309,9 +320,41 @@ private fun ShareSheet(
     }
 }
 
-/** 2×2 below 360dp, 1 row of 4 otherwise — approximated by window width via LocalConfiguration. */
 @Composable
-private fun isCompactGrid(): Boolean = LocalConfiguration.current.screenWidthDp < 360
+private fun ShareActionButton(
+    label: String,
+    enabled: Boolean,
+    filled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
+    val container = if (filled) colors.accent else Color.Transparent
+    val content = if (filled) colors.bg else colors.accentInk
+
+    Box(
+        modifier = modifier
+            .widthIn(max = 280.dp)
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(HadithShapes.pill)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 36.dp)
+                .background(if (enabled) container else container.copy(alpha = 0.4f), HadithShapes.pill)
+                .then(if (filled) Modifier else Modifier.border(1.dp, if (enabled) colors.borderStrong else colors.border, HadithShapes.pill))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(label, style = typography.secondaryAction, color = if (enabled) content else colors.muted)
+        }
+    }
+}
 
 @Composable
 private fun ThemeSegmentedControl(current: CardTheme, onSelect: (CardTheme) -> Unit) {
@@ -374,34 +417,49 @@ private val brandTints = mapOf(
 )
 
 @Composable
-private fun ShareTargetCell(target: ShareTarget, enabled: Boolean, darkTheme: Boolean, onClick: () -> Unit) {
+private fun ShareTargetCell(target: ShareTarget, enabled: Boolean, darkTheme: Boolean, copied: Boolean, onClick: () -> Unit) {
     val colors = LocalHadithColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val tint = brandTints[target]
-    val background = if (pressed && tint != null) tint.tintLight else colors.bg
+    val background = when {
+        copied -> colors.accentSoft
+        pressed && tint != null -> tint.tintLight
+        else -> colors.bg
+    }
     val foreground = if (pressed && tint != null) (if (darkTheme) tint.fgDark else tint.fgLight) else colors.textSoft
 
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .background(background, RoundedCornerShape(16.dp))
-            .border(1.dp, colors.borderStrong, RoundedCornerShape(16.dp))
+            .size(48.dp)
+            .clip(CircleShape)
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
-                onClickLabel = target.label,
+                onClickLabel = if (copied) "Image copied" else target.label,
                 onClick = onClick,
-            ),
+            )
+            .then(if (target == ShareTarget.COPY_IMAGE) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(target.icon),
-            contentDescription = target.label,
-            tint = foreground,
-            modifier = Modifier.size(28.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(background, CircleShape)
+                .border(1.dp, if (copied) colors.accent.copy(alpha = 0.35f) else colors.border, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(if (copied) HadithIcons.check else target.icon),
+                contentDescription = if (copied) "Image copied" else target.label,
+                tint = when {
+                    !enabled -> colors.muted.copy(alpha = 0.5f)
+                    copied -> colors.accentInk
+                    else -> foreground
+                },
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }

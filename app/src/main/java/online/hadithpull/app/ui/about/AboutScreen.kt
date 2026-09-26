@@ -227,7 +227,7 @@ private fun AboutScreen(
 
         Spacer(Modifier.height(HadithSpacing.section))
         Box(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
-            ContactSection(onSendMessage = onSendMessage, onOpenLink = onOpenLink)
+            ContactSection(onSendMessage = onSendMessage)
         }
 
         Spacer(Modifier.height(HadithSpacing.section))
@@ -244,9 +244,10 @@ private fun AboutScreen(
             Text(text = "Hadith Pull", color = colors.textSoft.copy(alpha = 0.82f), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Spacer(Modifier.height(2.dp))
             Text(text = "Version ${BuildConfig.VERSION_NAME}", color = colors.muted.copy(alpha = 0.78f), fontSize = 12.5.sp)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(HadithSpacing.xs))
+            SocialLinks(onOpenLink)
         }
-        Spacer(Modifier.height(HadithSpacing.xxl))
+        Spacer(Modifier.height(HadithSpacing.lg))
     }
 }
 
@@ -306,7 +307,6 @@ private fun LegalLinkRow(title: String, onClick: () -> Unit) {
 @Composable
 private fun ContactSection(
     onSendMessage: () -> Unit,
-    onOpenLink: (String) -> Unit,
 ) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
@@ -331,28 +331,30 @@ private fun ContactSection(
             Spacer(Modifier.width(6.dp))
             Text(text = "→", style = typography.helper, color = colors.accentInk)
         }
-        Spacer(Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SocialIcon(
-                icon = HadithIcons.github,
-                label = "GitHub",
-                onClick = { onOpenLink("https://github.com/aarahman04") },
-            )
-            SocialIcon(
-                icon = HadithIcons.linkedin,
-                label = "LinkedIn",
-                onClick = { onOpenLink("https://www.linkedin.com/in/aarahman04/") },
-            )
-            SocialIcon(
-                icon = HadithIcons.instagram,
-                label = "Instagram",
-                onClick = { onOpenLink("https://www.instagram.com/aarahmans/") },
-            )
-        }
+    }
+}
+
+@Composable
+private fun SocialLinks(onOpenLink: (String) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(HadithSpacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SocialIcon(
+            icon = HadithIcons.github,
+            label = "GitHub",
+            onClick = { onOpenLink("https://github.com/aarahman04") },
+        )
+        SocialIcon(
+            icon = HadithIcons.linkedin,
+            label = "LinkedIn",
+            onClick = { onOpenLink("https://www.linkedin.com/in/aarahman04/") },
+        )
+        SocialIcon(
+            icon = HadithIcons.instagram,
+            label = "Instagram",
+            onClick = { onOpenLink("https://www.instagram.com/aarahmans/") },
+        )
     }
 }
 
@@ -373,13 +375,13 @@ private fun SocialIcon(
     IconButton(
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier = Modifier.size(48.dp).scale(scale),
+        modifier = Modifier.size(48.dp),
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = label,
             tint = colors.textSoft,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(18.dp).scale(scale),
         )
     }
 }

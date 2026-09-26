@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,13 +52,14 @@ import online.hadithpull.app.data.FolderSummary
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.ui.components.HadithCard
 import online.hadithpull.app.ui.components.HadithIcons
-import online.hadithpull.app.ui.components.HadithPrimaryButton
 import online.hadithpull.app.ui.components.NewFolderField
 import online.hadithpull.app.ui.components.TertiaryLink
 import online.hadithpull.app.ui.components.ToastHost
 import online.hadithpull.app.ui.components.ToastState
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
+import online.hadithpull.app.ui.theme.HadithShapes
+import online.hadithpull.app.ui.theme.HadithSpacing
 
 private const val MAX_FOLDER_NAME_LENGTH = 40
 
@@ -116,25 +119,25 @@ fun SaveSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(width = 36.dp, height = 4.dp, color = colors.borderStrong) },
     ) {
         Box(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 20.dp)) {
+        Column(Modifier.padding(horizontal = 18.dp).padding(bottom = HadithSpacing.md)) {
             Text(text = "Save to a folder", style = typography.sectionTitle.copy(fontSize = 20.sp), color = colors.text)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(HadithSpacing.xs))
             Text(
                 text = "Keep this Hadith somewhere you'll find it again.",
                 color = colors.muted,
                 style = typography.helper,
             )
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(HadithSpacing.md))
 
             if (folders.isEmpty()) {
-                Text(text = "No folders yet. Create one below.", color = colors.muted, fontSize = 14.sp)
+                Text(text = "No folders yet. Create one below.", color = colors.muted, style = typography.helper)
             } else {
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(max = 264.dp)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(HadithSpacing.xs),
                 ) {
                     folders.forEach { folder ->
                         SaveSheetFolderRow(
@@ -153,24 +156,43 @@ fun SaveSheet(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(HadithSpacing.sm))
             NewFolderField(
                 expanded = creatingFolder,
                 onExpandedChange = { creatingFolder = it },
                 value = newFolderName,
                 onValueChange = { if (it.length <= MAX_FOLDER_NAME_LENGTH) newFolderName = it },
                 onSubmit = { submitCreate() },
+                compact = true,
             )
 
-            Spacer(Modifier.height(14.dp))
-            HadithPrimaryButton(text = "Done", onClick = { close() }, compact = true)
+            Spacer(Modifier.height(HadithSpacing.sm))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(HadithShapes.pill)
+                    .clickable(role = Role.Button, onClick = { close() }),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 36.dp)
+                        .background(colors.text, HadithShapes.pill)
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = "Done", style = typography.secondaryAction, color = colors.bg)
+                }
+            }
 
-            Spacer(Modifier.height(4.dp))
             TertiaryLink(
                 label = "Manage all bookmarks",
                 onClick = { close(onManageBookmarks) },
                 trailingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.KeyboardArrowRight),
                 modifier = Modifier.align(Alignment.CenterHorizontally),
+                compact = true,
             )
         }
         ToastHost(
@@ -184,15 +206,16 @@ fun SaveSheet(
 @Composable
 private fun SaveSheetFolderRow(folder: FolderSummary, checked: Boolean, onClick: () -> Unit) {
     val colors = LocalHadithColors.current
+    val typography = LocalHadithTypography.current
     HadithCard(
         selected = checked,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = HadithSpacing.xs),
         modifier = Modifier.clickable(onClick = onClick),
     ) {
         Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .background(if (checked) colors.accent else colors.accentSoft, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -203,20 +226,19 @@ private fun SaveSheetFolderRow(folder: FolderSummary, checked: Boolean, onClick:
                     modifier = Modifier.size(16.dp),
                 )
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     text = folder.name,
                     color = colors.text,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
+                    style = typography.optionLabel.copy(fontWeight = FontWeight.Medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = if (folder.count == 1) "1 Hadith" else "${folder.count} Hadiths",
                     color = colors.muted,
-                    fontSize = 12.sp,
+                    style = typography.helper.copy(fontSize = 12.5.sp),
                 )
             }
             Spacer(Modifier.width(12.dp))
