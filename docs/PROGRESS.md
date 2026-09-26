@@ -1263,3 +1263,11 @@ report above.
 **Validation:**
 - Built and installed the debug app on the emulator and relaunched it after the UI changes. Visually checked the Save sheet, Share sheet, About footer, copy confirmation, and Instagram-unavailable message.
 - `:app:testDebugUnitTest --offline` and `git diff --check` passed. No new automated tests were added.
+
+## 2026-09-26 -- Read-screen grade filter
+
+- Added a compact upward filter menu to the existing grade pill. The pill continues to show the current Hadith's stored grade and retains the existing grade colors.
+- Added `Sahih only`, `Other grades`, and `All grades`; the selection persists through the existing DataStore settings. Filtered draws select from cached candidate pools built from the dataset's stored primary categories. `Other grades` includes Hasan, Daif, and stored unknown categories, while ungraded narrations remain available under `All grades`.
+- Added draw-engine coverage for all three filter modes.
+
+**Validation:** `assembleDebug`, `testDebugUnitTest`, and `git diff --check` passed. Installed and opened the app on the emulator; the menu opened above the pill and showed the selected filter while the pill retained its actual grade. The user reviewed the running app and requested commit and push.

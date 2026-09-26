@@ -20,6 +20,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.Settings
+import online.hadithpull.app.data.prefs.HadithGradeFilter
 import online.hadithpull.app.di.AppContainer
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.text.plainText
@@ -35,7 +36,7 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
         },
     )
     val uiState by viewModel.uiState.collectAsState()
-    LaunchedEffect(Unit) { viewModel.start(null) }
+    LaunchedEffect(Unit) { viewModel.start(null, settings.hadithGradeFilter) }
 
     val scope = rememberCoroutineScope()
     val toastState = LocalToastState.current
@@ -52,9 +53,11 @@ fun ReaderRoute(container: AppContainer, darkTheme: Boolean, settings: Settings,
     ReaderScreen(
         uiState = uiState,
         darkTheme = darkTheme,
+        hadithGradeFilter = settings.hadithGradeFilter,
         arabicScript = settings.arabicScript,
         isSaved = isSaved,
-        onDraw = viewModel::draw,
+        onDraw = { viewModel.draw(settings.hadithGradeFilter) },
+        onSetHadithGradeFilter = { filter -> scope.launch { container.settingsRepository.setHadithGradeFilter(filter) } },
         onToggleExpand = viewModel::toggleExpand,
         onSetArabicScript = { script ->
             scope.launch { container.settingsRepository.setArabicScript(script) }

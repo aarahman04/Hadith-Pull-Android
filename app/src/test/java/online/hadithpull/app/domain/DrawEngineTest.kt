@@ -4,9 +4,12 @@ import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import online.hadithpull.app.data.HadithCollectionInfo
 import online.hadithpull.app.data.HadithIndex
+import online.hadithpull.app.data.HadithPrimaryGradeDto
 import online.hadithpull.app.data.HadithRecordDto
 import online.hadithpull.app.data.HadithSource
 import online.hadithpull.app.data.HadithSourceInfo
+import online.hadithpull.app.data.prefs.HadithGradeFilter
+import online.hadithpull.app.domain.Grading
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,6 +17,12 @@ import org.junit.Test
 private class FixedRandom(private val value: Int) : Random() {
     override fun nextBits(bitCount: Int): Int = throw UnsupportedOperationException()
     override fun nextInt(until: Int): Int = value
+}
+
+private class CyclingRandom : Random() {
+    private var next = 0
+    override fun nextBits(bitCount: Int): Int = throw UnsupportedOperationException()
+    override fun nextInt(until: Int): Int = next++ % until
 }
 
 private fun record(ref: String) = HadithRecordDto(ref = ref, english = "Narration $ref.", narrator = "")
@@ -43,6 +52,43 @@ private class FakeHadithSource : HadithSource {
 
 /** §4/H6: uniform draw over every eligible hadith, then a redraw once if it repeats the current key. */
 class DrawEngineTest {
+
+    @Test
+    fun `grade filters draw only from their stored primary categories`() = runBlocking {
+        val records = listOf(
+            HadithRecordDto(ref = "sahih", primary = HadithPrimaryGradeDto("Sahih", cat = "sahih")),
+            HadithRecordDto(ref = "hasan", primary = HadithPrimaryGradeDto("Hasan", cat = "hasan")),
+            HadithRecordDto(ref = "daif", primary = HadithPrimaryGradeDto("Daif", cat = "daif")),
+            HadithRecordDto(ref = "unknown", primary = HadithPrimaryGradeDto("Sahih Isnaad", cat = "unknown")),
+            HadithRecordDto(ref = "ungraded"),
+        )
+        val source = object : HadithSource {
+            override suspend fun index() = HadithIndex(
+                source = HadithSourceInfo("fake", "sha"),
+                generatedAt = "now",
+                collections = listOf(HadithCollectionInfo("a", "Collection A", records.size, listOf(0))),
+            )
+            override suspend fun get(collection: String, shard: Int) = records
+        }
+
+        suspend fun drawnGrades(filter: HadithGradeFilter, count: Int) = buildList {
+            val engine = DrawEngine(source, CyclingRandom())
+            repeat(count) {
+                val result = engine.draw(currentKey = null, filter = filter) as DrawResult.Success
+                add(result.hadith.primary?.cat)
+            }
+        }
+
+        assertEquals(listOf(Grading.SAHIH), drawnGrades(HadithGradeFilter.SAHIH_ONLY, 1))
+        assertEquals(
+            setOf(Grading.HASAN, Grading.DAIF, Grading.UNKNOWN),
+            drawnGrades(HadithGradeFilter.OTHER_GRADES, 3).toSet(),
+        )
+        assertEquals(
+            setOf(Grading.SAHIH, Grading.HASAN, Grading.DAIF, Grading.UNKNOWN, null),
+            drawnGrades(HadithGradeFilter.ALL_GRADES, 5).toSet(),
+        )
+    }
 
     @Test
     fun `a draw at the last offset of the first shard lands on that record`() = runBlocking {

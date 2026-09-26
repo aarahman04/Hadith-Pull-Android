@@ -13,6 +13,7 @@ private object Keys {
     val ARABIC_SCRIPT = stringPreferencesKey("arabicScript")
     val TEXT_SIZE = stringPreferencesKey("textSize")
     val CARD_ARABIC = booleanPreferencesKey("cardArabic")
+    val HADITH_GRADE_FILTER = stringPreferencesKey("hadithGradeFilter")
 }
 
 /** §1.7: unknown or legacy stored values fall back to the field's default. */
@@ -26,6 +27,9 @@ fun settingsFrom(prefs: Preferences): Settings {
         textSize = prefs[Keys.TEXT_SIZE]?.let { stored -> runCatching { TextSize.valueOf(stored) }.getOrNull() }
             ?: default.textSize,
         cardArabic = prefs[Keys.CARD_ARABIC] ?: default.cardArabic,
+        hadithGradeFilter = prefs[Keys.HADITH_GRADE_FILTER]?.let { stored ->
+            runCatching { HadithGradeFilter.valueOf(stored) }.getOrNull()
+        } ?: default.hadithGradeFilter,
     )
 }
 
@@ -47,5 +51,9 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setCardArabic(value: Boolean) {
         dataStore.edit { it[Keys.CARD_ARABIC] = value }
+    }
+
+    suspend fun setHadithGradeFilter(filter: HadithGradeFilter) {
+        dataStore.edit { it[Keys.HADITH_GRADE_FILTER] = filter.name }
     }
 }

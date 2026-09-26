@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import online.hadithpull.app.data.prefs.ArabicScript
+import online.hadithpull.app.data.prefs.HadithGradeFilter
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.domain.DRAW_FAILURE_MESSAGE
 import online.hadithpull.app.domain.text.buildExcerpt
@@ -105,10 +106,12 @@ private val DOCKED_MODE_MIN_HEIGHT = 480.dp
 fun ReaderScreen(
     uiState: ReaderUiState,
     darkTheme: Boolean,
+    hadithGradeFilter: HadithGradeFilter,
     arabicScript: ArabicScript,
     onDraw: () -> Unit,
     onToggleExpand: () -> Unit,
     onSetArabicScript: (ArabicScript) -> Unit,
+    onSetHadithGradeFilter: (HadithGradeFilter) -> Unit,
     isSaved: Boolean,
     onCopy: (Hadith) -> Unit,
     onOpenSave: (Hadith) -> Unit,
@@ -158,6 +161,8 @@ fun ReaderScreen(
                 ReaderDock(
                     uiState = uiState,
                     darkTheme = darkTheme,
+                    hadithGradeFilter = hadithGradeFilter,
+                    onSetHadithGradeFilter = onSetHadithGradeFilter,
                     isSaved = isSaved,
                     onDraw = onDraw,
                     onCopy = onCopy,
@@ -178,6 +183,8 @@ fun ReaderScreen(
                             ReaderDockContent(
                                 uiState = uiState,
                                 darkTheme = darkTheme,
+                                hadithGradeFilter = hadithGradeFilter,
+                                onSetHadithGradeFilter = onSetHadithGradeFilter,
                                 isSaved = isSaved,
                                 onDraw = onDraw,
                                 onCopy = onCopy,
@@ -601,6 +608,8 @@ private fun FailureBlock() {
 private fun ReaderDock(
     uiState: ReaderUiState,
     darkTheme: Boolean,
+    hadithGradeFilter: HadithGradeFilter,
+    onSetHadithGradeFilter: (HadithGradeFilter) -> Unit,
     isSaved: Boolean,
     onDraw: () -> Unit,
     onCopy: (Hadith) -> Unit,
@@ -611,7 +620,7 @@ private fun ReaderDock(
     val colors = LocalHadithColors.current
     Column(Modifier.fillMaxWidth().widthIn(max = 780.dp)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
-        ReaderDockContent(uiState, darkTheme, isSaved, onDraw, onCopy, onOpenSave, onOpenShare, onOpenSunnah)
+        ReaderDockContent(uiState, darkTheme, hadithGradeFilter, onSetHadithGradeFilter, isSaved, onDraw, onCopy, onOpenSave, onOpenShare, onOpenSunnah)
     }
 }
 
@@ -619,6 +628,8 @@ private fun ReaderDock(
 private fun ReaderDockContent(
     uiState: ReaderUiState,
     darkTheme: Boolean,
+    hadithGradeFilter: HadithGradeFilter,
+    onSetHadithGradeFilter: (HadithGradeFilter) -> Unit,
     isSaved: Boolean,
     onDraw: () -> Unit,
     onCopy: (Hadith) -> Unit,
@@ -632,7 +643,14 @@ private fun ReaderDockContent(
 
     Column(Modifier.fillMaxWidth().padding(horizontal = sidePadding).padding(top = 12.dp, bottom = 8.dp)) {
         HadithCard(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 0.dp)) {
-            ReferenceSummary(hadith = hadith, loading = uiState is ReaderUiState.Loading, darkTheme = darkTheme, onOpenSunnah = onOpenSunnah)
+            ReferenceSummary(
+                hadith = hadith,
+                loading = uiState is ReaderUiState.Loading,
+                darkTheme = darkTheme,
+                onOpenSunnah = onOpenSunnah,
+                hadithGradeFilter = hadithGradeFilter,
+                onSetHadithGradeFilter = onSetHadithGradeFilter,
+            )
         }
         Spacer(Modifier.height(12.dp))
         PrimaryButton(uiState = uiState, onDraw = onDraw)

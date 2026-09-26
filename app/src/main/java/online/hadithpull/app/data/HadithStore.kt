@@ -48,7 +48,7 @@ data class HadithGradeDto(val by: String, val grade: String)
 data class HadithPrimaryGradeDto(val grade: String, val by: String? = null, val cat: String, val consensus: Boolean = false)
 
 /** H8: the pipeline already computes the category; this just maps its string to the enum. */
-private fun parseGrading(cat: String): Grading = when (cat.lowercase()) {
+internal fun parseGrading(cat: String): Grading = when (cat.lowercase()) {
     "sahih" -> Grading.SAHIH
     "hasan" -> Grading.HASAN
     "daif" -> Grading.DAIF

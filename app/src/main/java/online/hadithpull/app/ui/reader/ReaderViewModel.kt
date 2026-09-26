@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import online.hadithpull.app.data.HadithRepository
+import online.hadithpull.app.data.prefs.HadithGradeFilter
 import online.hadithpull.app.domain.DrawResult
 import online.hadithpull.app.domain.Hadith
 
@@ -33,7 +34,7 @@ class ReaderViewModel(
 
     private var started = false
 
-    fun start(initial: Hadith?) {
+    fun start(initial: Hadith?, gradeFilter: HadithGradeFilter) {
         if (started) return
         started = true
 
@@ -44,16 +45,16 @@ class ReaderViewModel(
             val restoredExpanded = savedStateHandle.get<Boolean>(KEY_EXPANDED) ?: false
             _uiState.value = ReaderUiState.Loaded(restoredHadith, restoredExpanded)
         } else {
-            draw(minimumLoadingMillis = 0L)
+            draw(gradeFilter, minimumLoadingMillis = 0L)
         }
     }
 
-    fun draw(minimumLoadingMillis: Long = MIN_DRAW_LOADING_MILLIS) {
+    fun draw(gradeFilter: HadithGradeFilter, minimumLoadingMillis: Long = MIN_DRAW_LOADING_MILLIS) {
         val currentKey = (_uiState.value as? ReaderUiState.Loaded)?.hadith?.key
         val drawStartedAt = System.nanoTime()
         _uiState.value = ReaderUiState.Loading
         viewModelScope.launch {
-            val result = hadithRepository.draw(currentKey)
+            val result = hadithRepository.draw(currentKey, gradeFilter)
             val elapsedMillis = (System.nanoTime() - drawStartedAt) / 1_000_000L
             val remainingLoadingMillis = minimumLoadingMillis - elapsedMillis
             if (remainingLoadingMillis > 0L) delay(remainingLoadingMillis)

@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import online.hadithpull.app.data.prefs.HadithGradeFilter
 import online.hadithpull.app.domain.Hadith
 import online.hadithpull.app.ui.theme.LocalHadithColors
 import online.hadithpull.app.ui.theme.LocalHadithTypography
@@ -32,6 +33,8 @@ fun ReferenceSummary(
     darkTheme: Boolean,
     onOpenSunnah: (String) -> Unit,
     modifier: Modifier = Modifier,
+    hadithGradeFilter: HadithGradeFilter? = null,
+    onSetHadithGradeFilter: ((HadithGradeFilter) -> Unit)? = null,
 ) {
     val colors = LocalHadithColors.current
     val typography = LocalHadithTypography.current
@@ -56,7 +59,12 @@ fun ReferenceSummary(
             }
             if (hadith != null) {
                 Spacer(Modifier.width(12.dp))
-                StatusPill(primary = hadith.primary, darkTheme = darkTheme)
+                StatusPill(
+                    primary = hadith.primary,
+                    darkTheme = darkTheme,
+                    gradeFilter = hadithGradeFilter,
+                    onSetGradeFilter = onSetHadithGradeFilter,
+                )
             }
         }
         Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
